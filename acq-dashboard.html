@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ACQ Fundraising Dashboard</title>
+<style>
+  :root{
+    --bg:#121212;
+    --panel:#1a1a1a;
+    --card:#1e1e1e;
+    --card-2:#232323;
+    --line:#2c2c2a;
+    --white:#f2f0ea;
+    --muted:#9a9a93;
+    --teal:#2c8a9e;
+    --teal-dim:#1e6272;
+    --orange:#e8a33d;
+    --blue:#6fa8dc;
+    --green:#2e9e52;
+    --red:#d1453b;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--white);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  header{
+    padding:28px 24px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+  }
+  header h1{
+    font-family:Georgia,"Iowan Old Style",serif;
+    font-weight:400;
+    font-size:clamp(24px,3.4vw,34px);
+    margin:0 0 4px;
+    letter-spacing:0.01em;
+  }
+  header p{ margin:0; color:var(--muted); font-size:13px; }
+
+  .viewtabs{
+    display:flex; justify-content:center; gap:8px; margin-top:18px;
+  }
+  .viewtab{
+    appearance:none; border:1px solid var(--line); background:transparent;
+    color:var(--muted); padding:8px 22px; border-radius:999px; font-size:13px;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .viewtab.active{ border-color:var(--red); color:#ff8b7c; background:rgba(209,69,59,0.08); }
+  .viewtab:hover{ color:var(--white); border-color:#6a6a64; }
+
+  .controls{
+    position:sticky; top:0; z-index:10;
+    background:rgba(18,18,18,0.94); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:12px 24px;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  }
+  .controls .grow{ flex:1 1 200px; }
+  input[type="text"], select{
+    background:var(--card); color:var(--white); border:1px solid var(--line);
+    border-radius:6px; padding:8px 12px; font-size:13px; width:100%;
+  }
+  select{ cursor:pointer; }
+  .pillgroup{ display:flex; gap:6px; flex-wrap:wrap; }
+  .pill{
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    padding:6px 14px; border-radius:999px; font-size:12.5px; cursor:pointer;
+  }
+  .pill.active{ border-color:var(--teal); color:var(--white); background:var(--teal-dim); }
+  .btn{
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    padding:8px 14px; border-radius:6px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{ color:var(--white); border-color:#6a6a64; }
+  .btn.danger:hover{ border-color:var(--red); color:#ff8b7c; }
+
+  main{ max-width:1400px; margin:0 auto; padding:24px; }
+
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:22px; }
+  .kpi{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  .kpi .label{ font-size:12.5px; color:var(--muted); margin:0 0 6px; }
+  .kpi .value{ font-size:26px; font-weight:600; margin:0; }
+  .kpi .value.green{ color:var(--green); }
+  .kpi .value.red{ color:var(--red); }
+
+  .grid2{ display:grid; grid-template-columns:1.4fr 1fr; gap:16px; margin-bottom:20px; }
+  .panel{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .panel h3{ font-size:14px; font-weight:600; margin:0 0 14px; color:var(--white); }
+  .chart-wrap{ position:relative; width:100%; }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin-bottom:10px; font-size:12px; color:var(--muted); }
+  .legend span.dot{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+
+  table.datatable{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.datatable th{
+    text-align:left; padding:9px 10px; color:var(--muted); font-weight:500;
+    border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  table.datatable th:hover{ color:var(--white); }
+  table.datatable td{ padding:9px 10px; border-bottom:1px solid #232322; white-space:nowrap; }
+  table.datatable tr.rowlink{ cursor:pointer; }
+  table.datatable tr.rowlink:hover td{ background:#242424; }
+  .agency-badge{
+    display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600;
+  }
+  .badge-QDF{ background:rgba(111,168,220,0.18); color:#8fbde8; }
+  .badge-BPO{ background:rgba(232,163,61,0.18); color:#f0bb63; }
+  .badge-IG{ background:rgba(46,158,82,0.18); color:#5cc881; }
+
+  .neg{ color:var(--red); font-weight:600; }
+  .pos{ color:var(--green); font-weight:600; }
+
+  /* client detail */
+  .detail-header{ display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+  .detail-header h2{ font-size:20px; margin:0; font-weight:600; }
+  .detail-header .agency-line{ color:var(--muted); font-size:13px; margin-top:2px; }
+
+  .metric-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+  .metric-card{ background:var(--card-2); border-radius:8px; padding:12px 14px; }
+  .metric-card .k{ font-size:11.5px; color:var(--muted); margin:0 0 4px; }
+  .metric-card .v{ font-size:18px; font-weight:600; margin:0; }
+  [contenteditable="true"]{ outline:none; border-radius:4px; padding:1px 3px; }
+  [contenteditable="true"]:hover{ background:rgba(255,255,255,0.06); cursor:text; }
+  [contenteditable="true"]:focus{ background:rgba(255,255,255,0.1); box-shadow:0 0 0 1px var(--teal); }
+
+  .empty{ text-align:center; color:var(--muted); padding:60px 20px; font-size:14px; }
+
+  @media (max-width:900px){ .grid2{ grid-template-columns:1fr; } }
+  @media (max-width:640px){
+    header{ padding:22px 16px 14px; }
+    main{ padding:16px; }
+    .controls{ padding:10px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ACQ Fundraising Dashboard</h1>
+  <p>6 clients · 3 partner agencies</p>
+  <div class="viewtabs">
+    <button class="viewtab active" data-view="summary">Summary</button>
+    <button class="viewtab" data-view="client">Client view</button>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="pillgroup" id="agencyPills"></div>
+  <input type="text" class="grow" id="searchBox" placeholder="Search clients...">
+  <select id="clientPicker" style="display:none;"></select>
+</div>
+
+<main id="main"></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function(){
+  const STORE_KEY = "acq_dashboard_v1";
+  const AGENCIES = ["QDF","BPO","IG"];
+  const COVE = { QDF:"#6fa8dc", BPO:"#e8a33d", IG:"#2e9e52" };
+
+  const sample = [
+    {id:1, charity:"URC",    agency:"QDF", totDonation:143, totRaised:6281, ccddNum:128, ccddAmt:5391, soNum:15, soAmt:890, webNum:0, webAmt:0, tdNum:5, tdAmt:150, mobileNum:89, emailNum:97, dobNum:30, p50:34, p100:15, p200:2, ret1:34.87, ret2:21.69, ret3:52.50},
+    {id:2, charity:"APWF",   agency:"BPO", totDonation:67,  totRaised:3729, ccddNum:55,  ccddAmt:3133, soNum:12, soAmt:596, webNum:0, webAmt:0, tdNum:2, tdAmt:136, mobileNum:32, emailNum:33, dobNum:33, p50:13, p100:15, p200:1, ret1:7.82,  ret2:16.71, ret3:9.69},
+    {id:3, charity:"BZA",    agency:"IG",  totDonation:56,  totRaised:3300, ccddNum:39,  ccddAmt:2585, soNum:16, soAmt:665, webNum:1, webAmt:50, tdNum:0, tdAmt:0,   mobileNum:22, emailNum:24, dobNum:29, p50:17, p100:8,  p200:3, ret1:8.78,  ret2:62.30, ret3:46.15},
+    {id:4, charity:"ALLKND", agency:"QDF", totDonation:37,  totRaised:2645, ccddNum:26,  ccddAmt:2255, soNum:11, soAmt:390, webNum:0, webAmt:0, tdNum:2, tdAmt:55,  mobileNum:14, emailNum:19, dobNum:17, p50:7,  p100:7,  p200:3, ret1:5.26,  ret2:9.80,  ret3:22.89},
+    {id:5, charity:"CHA",    agency:"BPO", totDonation:23,  totRaised:950,  ccddNum:15,  ccddAmt:615,  soNum:8,  soAmt:335, webNum:0, webAmt:0, tdNum:0, tdAmt:0,   mobileNum:6,  emailNum:7,  dobNum:10, p50:4,  p100:4,  p200:0, ret1:0.00,  ret2:27.83, ret3:60.84},
+    {id:6, charity:"ARF",    agency:"IG",  totDonation:3,   totRaised:95,   ccddNum:2,   ccddAmt:70,   soNum:1,  soAmt:25,  webNum:0, webAmt:0, tdNum:0, tdAmt:0,   mobileNum:1,  emailNum:1,  dobNum:3,  p50:1,  p100:0,  p200:0, ret1:0.00,  ret2:0.00,  ret3:0.00},
+  ];
+
+  function load(){
+    try{ const raw = localStorage.getItem(STORE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return JSON.parse(JSON.stringify(sample));
+  }
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(clients)); }catch(e){} }
+
+  let clients = load();
+  const state = { view:"summary", agency:"All", search:"", sort:"raised_desc", clientId: clients[0] ? clients[0].id : null };
+
+  const money = n => "$" + Math.round(n).toLocaleString();
+  const pct = n => (Math.round(n*100)/100).toFixed(2) + "%";
+  const avg = (arr,f) => arr.length ? arr.reduce((a,r)=>a+Number(r[f]||0),0)/arr.length : 0;
+  const sum = (arr,f) => arr.reduce((a,r)=>a+Number(r[f]||0),0);
+
+  function filteredSorted(){
+    let list = clients.filter(c => state.agency==="All" || c.agency===state.agency);
+    if(state.search.trim()){
+      const q = state.search.trim().toLowerCase();
+      list = list.filter(c => c.charity.toLowerCase().includes(q));
+    }
+    const s = state.sort;
+    list = list.slice();
+    if(s==="raised_desc") list.sort((a,b)=>b.totRaised-a.totRaised);
+    else if(s==="raised_asc") list.sort((a,b)=>a.totRaised-b.totRaised);
+    else if(s==="donations_desc") list.sort((a,b)=>b.totDonation-a.totDonation);
+    else if(s==="ret_desc") list.sort((a,b)=>b.ret3-a.ret3);
+    else if(s==="name") list.sort((a,b)=>a.charity.localeCompare(b.charity));
+    return list;
+  }
+
+  function renderAgencyPills(){
+    const el = document.getElementById("agencyPills");
+    el.innerHTML = "";
+    ["All", ...AGENCIES].forEach(a=>{
+      const b = document.createElement("button");
+      b.className = "pill" + (state.agency===a ? " active":"");
+      b.textContent = a;
+      b.onclick = ()=>{ state.agency = a; renderAll(); };
+      el.appendChild(b);
+    });
+  }
+
+  function renderClientPicker(){
+    const sel = document.getElementById("clientPicker");
+    sel.innerHTML = "";
+    clients.forEach(c=>{
+      const opt = document.createElement("option");
+      opt.value = c.id; opt.textContent = c.charity;
+      if(c.id === state.clientId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = ()=>{ state.clientId = Number(sel.value); renderAll(); };
+  }
+
+  let clientChart, agencyChart, trendChart;
+
+  function renderSummary(){
+    const main = document.getElementById("main");
+    const list = filteredSorted();
+    const totRaised = sum(list,"totRaised");
+    const totDonation = sum(list,"totDonation");
+    const avgGift = totDonation>0 ? totRaised/totDonation : 0;
+    const avgReturn = avg(list,"ret3");
+
+    main.innerHTML = `
+      <div class="kpis">
+        <div class="kpi"><p class="label">Total raised</p><p class="value">${money(totRaised)}</p></div>
+        <div class="kpi"><p class="label">Total donations</p><p class="value">${totDonation}</p></div>
+        <div class="kpi"><p class="label">Avg. gift</p><p class="value">${money(avgGift)}</p></div>
+        <div class="kpi"><p class="label">Clients shown</p><p class="value">${list.length}</p></div>
+        <div class="kpi"><p class="label">Avg. latest return</p><p class="value ${avgReturn>=20?'green':'red'}">${pct(avgReturn)}</p></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Funds raised by client</h3>
+          <div class="chart-wrap" style="height:260px;">
+            <canvas id="clientChart" role="img" aria-label="Bar chart of funds raised per client"></canvas>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Raised by agency</h3>
+          <div class="legend" id="agencyLegend"></div>
+          <div class="chart-wrap" style="height:200px;">
+            <canvas id="agencyChart" role="img" aria-label="Donut chart of funds raised share by agency"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <h3>Last 3 months — average return % across shown clients</h3>
+        <div class="chart-wrap" style="height:180px;">
+          <canvas id="trendChart" role="img" aria-label="Line chart of average SO dollar return percent over the last three months"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Clients</h3>
+        <table class="datatable" id="clientTable">
+          <thead>
+            <tr>
+              <th>Charity</th><th>Agency</th><th>Donations</th><th>Raised</th><th>Avg gift</th><th>Latest return %</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    `;
+
+    // client bar chart
+    if(clientChart) clientChart.destroy();
+    clientChart = new Chart(document.getElementById("clientChart"), {
+      type:"bar",
+      data:{
+        labels: list.map(c=>c.charity),
+        datasets:[{ data: list.map(c=>c.totRaised), backgroundColor: list.map(c=>COVE[c.agency]), borderRadius:4, maxBarThickness:34 }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          y:{ beginAtZero:true, grid:{ color:"#2c2c2a" }, ticks:{ color:"#9a9a93" } },
+          x:{ grid:{ display:false }, ticks:{ color:"#9a9a93" } }
+        }
+      }
+    });
+
+    // agency donut
+    const byAgency = AGENCIES.map(a => sum(clients.filter(c=>c.agency===a), "totRaised"));
+    const legendEl = document.getElementById("agencyLegend");
+    legendEl.innerHTML = AGENCIES.map((a,i)=>{
+      const total = byAgency.reduce((x,y)=>x+y,0) || 1;
+      return `<span><span class="dot" style="background:${COVE[a]};"></span>${a} ${Math.round(byAgency[i]/total*100)}%</span>`;
+    }).join("");
+    if(agencyChart) agencyChart.destroy();
+    agencyChart = new Chart(document.getElementById("agencyChart"), {
+      type:"doughnut",
+      data:{ labels:AGENCIES, datasets:[{ data:byAgency, backgroundColor:AGENCIES.map(a=>COVE[a]), borderColor:"#1e1e1e", borderWidth:3 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+
+    // trend line (ret1, ret2, ret3 averaged across filtered list)
+    if(trendChart) trendChart.destroy();
+    trendChart = new Chart(document.getElementById("trendChart"), {
+      type:"line",
+      data:{
+        labels:["3 months ago","2 months ago","Last month"],
+        datasets:[{ data:[avg(list,"ret1"),avg(list,"ret2"),avg(list,"ret3")], borderColor:"#2c8a9e", backgroundColor:"rgba(44,138,158,0.12)", fill:true, tension:0.3, pointRadius:4, pointBackgroundColor:"#2c8a9e" }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          y:{ grid:{ color:"#2c2c2a" }, ticks:{ color:"#9a9a93", callback:v=>v+"%" } },
+          x:{ grid:{ display:false }, ticks:{ color:"#9a9a93" } }
+        }
+      }
+    });
+
+    // table
+    const tbody = document.querySelector("#clientTable tbody");
+    tbody.innerHTML = "";
+    list.forEach(c=>{
+      const tr = document.createElement("tr");
+      tr.className = "rowlink";
+      tr.onclick = ()=>{ state.clientId = c.id; state.view = "client"; renderAll(); };
+      tr.innerHTML = `
+        <td>${c.charity}</td>
+        <td><span class="agency-badge badge-${c.agency}">${c.agency}</span></td>
+        <td>${c.totDonation}</td>
+        <td>${money(c.totRaised)}</td>
+        <td>${money(c.totDonation>0 ? c.totRaised/c.totDonation : 0)}</td>
+        <td class="${c.ret3>=20?'pos':'neg'}">${pct(c.ret3)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if(list.length === 0){
+      main.querySelector(".panel:last-child").innerHTML = `<h3>Clients</h3><div class="empty">No clients match this filter.</div>`;
+    }
+  }
+
+  function editableField(value, decimals, onCommit){
+    const span = document.createElement("span");
+    span.contentEditable = "true";
+    span.textContent = decimals!=null ? Number(value).toFixed(decimals) : value;
+    span.addEventListener("blur", ()=>{
+      let v = parseFloat(span.textContent.replace(/[^0-9.\-]/g,""));
+      if(isNaN(v)) v = 0;
+      onCommit(v);
+      save();
+      renderAll();
+    });
+    span.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); span.blur(); } });
+    return span;
+  }
+
+  function renderClientView(){
+    const main = document.getElementById("main");
+    const c = clients.find(x=>x.id===state.clientId);
+    if(!c){
+      main.innerHTML = `<div class="empty">No client selected.</div>`;
+      return;
+    }
+    main.innerHTML = `
+      <div class="detail-header">
+        <div>
+          <h2 id="nameEdit"></h2>
+          <p class="agency-line">Agency: <select id="agencySelect"></select></p>
+        </div>
+        <button class="btn danger" id="removeClientBtn">Remove client</button>
+      </div>
+
+      <div class="metric-grid" id="topMetrics"></div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Channel breakdown</h3>
+          <div class="chart-wrap" style="height:220px;"><canvas id="channelChart" role="img" aria-label="Bar chart of dollars raised by channel: card, standing order, web, telemarketing"></canvas></div>
+        </div>
+        <div class="panel">
+          <h3>Engagement reach</h3>
+          <div id="engagement"></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h3>Donor value tiers</h3>
+          <div class="chart-wrap" style="height:200px;"><canvas id="tierChart" role="img" aria-label="Bar chart of donor counts by gift tier"></canvas></div>
+        </div>
+        <div class="panel">
+          <h3>Last 3 months — SO $$ return %</h3>
+          <div class="chart-wrap" style="height:200px;"><canvas id="retChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas></div>
+        </div>
+      </div>
+    `;
+
+    const nameEl = document.getElementById("nameEdit");
+    nameEl.contentEditable = "true";
+    nameEl.textContent = c.charity;
+    nameEl.addEventListener("blur", ()=>{ c.charity = nameEl.textContent.trim() || "Untitled"; save(); renderAll(); });
+
+    const agencySel = document.getElementById("agencySelect");
+    AGENCIES.forEach(a=>{
+      const opt = document.createElement("option");
+      opt.value = a; opt.textContent = a;
+      if(a===c.agency) opt.selected = true;
+      agencySel.appendChild(opt);
+    });
+    agencySel.onchange = ()=>{ c.agency = agencySel.value; save(); renderAll(); };
+
+    document.getElementById("removeClientBtn").onclick = ()=>{
+      if(!confirm(`Remove ${c.charity}?`)) return;
+      clients = clients.filter(x=>x.id!==c.id);
+      state.clientId = clients[0] ? clients[0].id : null;
+      save(); renderAll();
+    };
+
+    const topMetrics = document.getElementById("topMetrics");
+    const metricDefs = [
+      ["Total donations","totDonation",0],
+      ["Total raised","totRaised",0],
+      ["Avg gift", null, null],
+      ["$50+ donors","p50",0],
+      ["$100+ donors","p100",0],
+      ["$200+ donors","p200",0],
+    ];
+    metricDefs.forEach(([label, field, dec])=>{
+      const card = document.createElement("div");
+      card.className = "metric-card";
+      const k = document.createElement("p"); k.className="k"; k.textContent = label;
+      const v = document.createElement("p"); v.className="v";
+      if(field===null){
+        v.textContent = money(c.totDonation>0 ? c.totRaised/c.totDonation : 0);
+      } else {
+        v.appendChild(editableField(c[field], dec, val=>{ c[field]=val; }));
+      }
+      card.appendChild(k); card.appendChild(v);
+      topMetrics.appendChild(card);
+    });
+
+    new Chart(document.getElementById("channelChart"), {
+      type:"bar",
+      data:{
+        labels:["Card/DD","Standing order","Web","Telemarketing"],
+        datasets:[{ data:[c.ccddAmt,c.soAmt,c.webAmt,c.tdAmt], backgroundColor:["#6fa8dc","#2c8a9e","#9a9a93","#e8a33d"], borderRadius:4, maxBarThickness:40 }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, grid:{ color:"#2c2c2a" }, ticks:{ color:"#9a9a93" } }, x:{ grid:{ display:false }, ticks:{ color:"#9a9a93" } } }
+      }
+    });
+
+    const eng = document.getElementById("engagement");
+    eng.innerHTML = "";
+    [["Mobile","mobileNum"],["Email","emailNum"],["DOB","dobNum"]].forEach(([label,field])=>{
+      const share = c.totDonation>0 ? c[field]/c.totDonation*100 : 0;
+      const row = document.createElement("div");
+      row.style.marginBottom = "14px";
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+          <span>${label}</span><span class="${share<40?'neg':''}">${c[field]} · ${pct(share)}</span>
+        </div>
+        <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+          <div style="width:${Math.min(share,100)}%;background:#2c8a9e;height:100%;"></div>
+        </div>
+      `;
+      eng.appendChild(row);
+    });
+
+    new Chart(document.getElementById("tierChart"), {
+      type:"bar",
+      data:{
+        labels:["$50+","$100+","$200+"],
+        datasets:[{ data:[c.p50,c.p100,c.p200], backgroundColor:"#6fa8dc", borderRadius:4, maxBarThickness:40 }]
+      },
+      options:{
+        indexAxis:"y", responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ x:{ beginAtZero:true, grid:{ color:"#2c2c2a" }, ticks:{ color:"#9a9a93" } }, y:{ grid:{ display:false }, ticks:{ color:"#9a9a93" } } }
+      }
+    });
+
+    new Chart(document.getElementById("retChart"), {
+      type:"line",
+      data:{
+        labels:["3 months ago","2 months ago","Last month"],
+        datasets:[{ data:[c.ret1,c.ret2,c.ret3], borderColor:"#2e9e52", backgroundColor:"rgba(46,158,82,0.12)", fill:true, tension:0.3, pointRadius:4, pointBackgroundColor:"#2e9e52" }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ grid:{ color:"#2c2c2a" }, ticks:{ color:"#9a9a93", callback:v=>v+"%" } }, x:{ grid:{ display:false }, ticks:{ color:"#9a9a93" } } }
+      }
+    });
+  }
+
+  function renderAll(){
+    document.querySelectorAll(".viewtab").forEach(t=>{
+      t.classList.toggle("active", t.dataset.view===state.view);
+    });
+    document.getElementById("searchBox").style.display = state.view==="summary" ? "" : "none";
+    document.getElementById("agencyPills").style.display = state.view==="summary" ? "" : "none";
+    document.getElementById("clientPicker").style.display = state.view==="client" ? "" : "none";
+    renderClientPicker();
+    if(state.view==="summary") renderSummary(); else renderClientView();
+  }
+
+  document.querySelectorAll(".viewtab").forEach(t=>{
+    t.onclick = ()=>{ state.view = t.dataset.view; if(state.view==="client" && !state.clientId && clients[0]) state.clientId = clients[0].id; renderAll(); };
+  });
+  document.getElementById("searchBox").addEventListener("input", e=>{ state.search = e.target.value; renderSummary(); });
+
+  renderAgencyPills();
+  renderAll();
+})();
+</script>
+</body>
+</html>
