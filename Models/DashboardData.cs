@@ -53,6 +53,8 @@ namespace ACQFundraisingDashboard.Models
         public int Total_donation_count { get; set; }
         public int Client_count { get; set; }
         public decimal Avg_gift { get; set; }
+        public int Total_declined_count { get; set; }
+        public decimal Total_declined_rate { get; set; }
         // Card, direct debit, card/DD combined, standing order, telemarketing (TD), and web (head office).
         public decimal cc_total { get; set; }
         public int cc_donations { get; set; }
@@ -132,6 +134,8 @@ namespace ACQFundraisingDashboard.Models
         public decimal Total_donation_amount { get; set; }
         public int Total_donation_count { get; set; }
         public decimal Gift_avg { get; set; }
+        public int Declined_count { get; set; }
+        public decimal Declined_rate { get; set; }
     }
 
     // Result set 3. One agency slice for the donut. Donation_percent is that agency's share of the total.

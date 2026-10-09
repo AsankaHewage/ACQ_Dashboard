@@ -298,13 +298,10 @@ $(function () {
                     $('#kpiTier200').text(dashboard.summary[0].tier200);
     
                     //to dynamic (soon)
-                    var kpi_return = 0;
-                    $('#kpiReturn').text(percent(kpi_return));
-                    if (kpi_return <= 30) {
-                        $('#kpiReturn').addClass('neg');
-                    }
-                    else {
-                        $('#kpiReturn').addClass('pos');
+                    var kpi_declined_rate = dashboard.summary[0].total_declined_rate;
+                    $('#kpiDeclinedRate').text(percent(kpi_declined_rate)+" ("+dashboard.summary[0].total_declined_count+")");
+                    if (true) {
+                        $('#kpiDeclinedRate').addClass('neg');
                     }
     
                     //load charts
@@ -681,12 +678,8 @@ $(function () {
 
             var campaign = row.bankingProductType + " (" + row.listNo + ")";
 
-            var perc = 0;
-            var pos_neg = 'pos';
-
-            if (perc <= 30) {
-                pos_neg = 'neg'
-            }
+            var declined_rate = row.declined_rate;
+            var declined_count = row.declined_count;
         
             $("#clientTable tbody").append(
                 "<tr>"
@@ -696,7 +689,7 @@ $(function () {
                 + "<td data-order='" + row.total_donation_count + "'>" + row.total_donation_count + "</td>"
                 + "<td data-order='" + row.total_donation_amount + "'>" + money(row.total_donation_amount) + "</td>"
                 + "<td data-order='" + row.gift_avg + "'>" + money(row.gift_avg) + "</td>"
-                + "<td class=" + pos_neg +" data-order='" + perc + "'>" + percent(perc) + "</td>"
+                + "<td class='neg' data-order='" + declined_rate + "'>" + percent(declined_rate) + " (" + declined_count + ")" + "</td>"
                 + "</tr>"
             );
         });

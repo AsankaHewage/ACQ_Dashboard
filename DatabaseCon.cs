@@ -89,6 +89,8 @@ namespace ACQFundraisingDashboard
                             Total_donation_count = ReadInt(reader, "Total_donation_count"),
                             Client_count = ReadInt(reader, "Client_count"), //client shown
                             Avg_gift = ReadDecimal(reader, "Avg_gift"),
+                            Total_declined_count = ReadInt(reader, "Total_declined_count"),
+                            Total_declined_rate = ReadDecimal(reader, "Total_declined_rate"),
                             cc_total = ReadDecimal(reader, "cc_total"),
                             cc_donations = ReadInt(reader, "cc_donations"),
                             dd_total = ReadDecimal(reader, "dd_total"),
@@ -171,6 +173,8 @@ namespace ACQFundraisingDashboard
                             Total_donation_amount = ReadDecimal(reader, "Total_donation_amount"),
                             Total_donation_count = ReadInt(reader, "Total_donation_count"),
                             Gift_avg = ReadDecimal(reader, "Gift_avg"),
+                            Declined_count = ReadInt(reader, "Declined_count"),
+                            Declined_rate = ReadDecimal(reader, "Declined_rate"),
                         });
                     }
 
