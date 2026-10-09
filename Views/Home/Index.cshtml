@@ -9,44 +9,71 @@
     <title>ACQ Fundraising Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet" />
     <link href="~/Content/acq-dashboard.css" rel="stylesheet" />
 </head>
 <body>
     <header>
         <h1>ACQ Fundraising Dashboard</h1>
-        <p id="clientSummary"></p>
-        <div class="viewtabs">
-            <button type="button" class="viewtab active" data-view="summary">Summary</button>
-            <button type="button" class="viewtab" data-view="client">Client view</button>
+        <div class="criteria">
+            <p class="criteria-label">View</p>
+            <div class="viewtabs">
+                <button type="button" class="viewtab active" data-view="summary">Summary</button>
+                <button type="button" class="viewtab" data-view="client">Client performance</button>
+                <button type="button" class="viewtab" data-view="supplier">Supplier performance</button>
+            </div>
+
+            <p class="criteria-label">Filters</p>
+            <div class="filter-grid">
+                <label class="filter-field">
+                    <span>Client</span>
+                    <select id="clientFilter" multiple>
+                        <option value="ALL">All clients</option>
+                    </select>
+                </label>
+                <label class="filter-field">
+                    <span>Campaign</span>
+                    <select id="campaignFilter" multiple>
+                        <option value="ALL">All campaigns</option>
+                    </select>
+                </label>
+                <label class="filter-field">
+                    <span>Supplier</span>
+                    <select id="supplierFilter" multiple>
+                        <option value="ALL">All suppliers</option>
+                    </select>
+                </label>
+                <label class="filter-field">
+                    <span>Period</span>
+                    <select id="periodFilter">
+                        <option value="0" selected>Current month</option>
+                        <option value="1">Last month</option>
+                        <option value="3">Last 3 months</option>
+                        <option value="6">Last 6 months</option>
+                    </select>
+                </label>
+                <div class="filter-apply">
+                    <button type="button" id="applyFilters" class="btn">Apply</button>
+                </div>
+            </div>
+            <p id="monthRange"></p>
         </div>
-        <div class="pillgroup" id="monthPills">
-            <button type="button" class="pill active" data-month="0">Current month</button>
-            <button type="button" class="pill" data-month="1">Last month</button>
-            <button type="button" class="pill" data-month="3">Last 3 months</button>
-            <button type="button" class="pill" data-month="6">Last 6 months</button>
-        </div>
-        <p id="monthRange"></p>
     </header>
 
-    <div class="controls">
-        <div class="pillgroup" id="agencyPills">
-            <button type="button" class="pill active" data-supplier="ALL">All</button>
-            <button type="button" class="pill" data-supplier="QUINN">QDF</button>
-            <button type="button" class="pill" data-supplier="BPO">BPO</button>
-            <button type="button" class="pill" data-supplier="IG">IG</button>
-            <button type="button" class="pill" data-supplier="DTS">DTS</button>
-        </div>
-        <div class="grow search-wrap">
-            <select id="searchBox" multiple>
-               
-            </select>
-        </div>
-        <div class="grow client-picker-wrap" style="display:none;">
-            <select id="clientPicker" multiple></select>
+    <div class="legacy-controls" hidden>
+        <p id="clientSummary"></p>
+        <div class="controls">
+            <div class="pillgroup" id="agencyPills">
+                <button type="button" class="pill active" data-supplier="ALL">All</button>
+                <button type="button" class="pill" data-supplier="QUINN">QDF</button>
+                <button type="button" class="pill" data-supplier="BPO">BPO</button>
+                <button type="button" class="pill" data-supplier="IG">IG</button>
+                <button type="button" class="pill" data-supplier="DTS">DTS</button>
+            </div>
         </div>
     </div>
 
-    <main id="main" data-dashboard-url="@Url.Action("Dashboard", "Home")">
+    <main id="main">
 
         <div id="summaryLoading" class="empty" style="display:none;">
             <div class="spinner" aria-hidden="true"></div>
@@ -58,8 +85,16 @@
                 <div class="kpi"><p class="label">Total raised</p><p class="value" id="kpiRaised"></p></div>
                 <div class="kpi"><p class="label">Total donations</p><p class="value" id="kpiDonations"></p></div>
                 <div class="kpi"><p class="label">Avg. gift</p><p class="value" id="kpiAvgGift"></p></div>
-                <div class="kpi"><p class="label">Charities shown</p><p class="value" id="kpiClients"></p></div>
-                <div class="kpi"><p class="label">Avg. latest return</p><p class="value" id="kpiReturn"></p></div>
+                <div class="kpi kpi-tiers">
+                    <p class="label">Tiers</p>
+                    <div class="tier-grid">
+                        <div><span class="tier-k">$0–49</span><span class="tier-v" id="kpiTier50less"></span></div>
+                        <div><span class="tier-k">$50+</span><span class="tier-v" id="kpiTier50"></span></div>
+                        <div><span class="tier-k">$100+</span><span class="tier-v" id="kpiTier100"></span></div>
+                        <div><span class="tier-k">$200+</span><span class="tier-v" id="kpiTier200"></span></div>
+                    </div>
+                </div>
+                <div class="kpi"><p class="label">Avg. Declined rate</p><p class="value" id="kpiReturn"></p></div>
             </div>
 
             <div class="grid2">
@@ -89,14 +124,14 @@
             </div>
 
             <div class="panel" style="margin-bottom:20px;">
-                <h3>Last 3 months — average return % across shown charity</h3>
+                <h3>SO Return % across shown charities — Last 6 months</h3>
                 <div class="chart-wrap" style="height:180px;">
                     <canvas id="trendChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas>
                 </div>
             </div>
 
-            <div class="panel">
-                <h3>Charities</h3>
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>Campaign Performance</h3>
                 <table class="datatable" id="clientTable">
                     <thead>
                         <tr>
@@ -105,13 +140,47 @@
                             <th>Campaign</th>
                             <th>Donations</th>
                             <th>Raised</th>
-                            <th>Avg gift</th>
-                            <th>Latest return %</th>
+                            <th>Avg. gift</th>
+                            <th>Avg. declined rate</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
+
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>Fundraiser Performance</h3>
+                <table class="datatable" id="fundraiserTable">
+                    <thead>
+                        <tr>
+                            <th>FR</th>
+                            <th>Supplier</th>
+                            <th class="num">Raised</th>
+                            <th class="num">CC/DD</th>
+                            <th class="num">SO</th>
+                            <th class="num">WEB (HO)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="demo-pies">
+                <div class="panel">
+                    <h3>State</h3>
+                    <div class="chart-wrap" style="height:220px;">
+                        <canvas id="stateChart" role="img" aria-label="Pie chart of donors by state"></canvas>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3>Gender</h3>
+                    <div class="chart-wrap" style="height:220px;">
+                        <canvas id="genderChart" role="img" aria-label="Pie chart of donors by gender"></canvas>
+                    </div>
+                </div>
+            </div>
+
+
         </div>
         
         <div id="clientView" style="display:none;">
@@ -201,8 +270,14 @@
 
     <script src="~/Scripts/jquery-3.7.0.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        var dashboardUrl = '@Url.Action("Dashboard", "Home")';
+    </script>
     <script src="~/Scripts/acq-dashboard.js"></script>
 </body>
 </html>

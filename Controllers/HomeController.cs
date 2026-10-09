@@ -13,11 +13,11 @@ namespace ACQFundraisingDashboard.Controllers
             return View();
         }
 
-        // Returns the procedure result as JSON. supplier and charity come from the script's query string.
-        public ActionResult Dashboard(string supplier, string charity, int month)
+        // Returns the procedure result as JSON. supplier, charity, and campaign come from the script's query string.
+        public ActionResult Dashboard(string supplier, string charity, string campaign, int month)
         {
             var json = JsonConvert.SerializeObject(
-                DatabaseCon.GetDashboard(supplier, charity, month),
+                DatabaseCon.GetDashboard(supplier, charity, campaign, month),
                 new JsonSerializerSettings
                 {
                     // Total_donation_amount becomes total_donation_amount for the script.
