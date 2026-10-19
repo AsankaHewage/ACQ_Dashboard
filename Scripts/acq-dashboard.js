@@ -9,6 +9,21 @@ function percent(value) {
     return value.toFixed(2) + "%";
 }
 
+function fillEngagement(summary) {
+    if (!summary) return;
+
+    function bar(labelId, barId, count, share) {
+        var value = Number(share) || 0;
+        $(labelId).text(count + " · " + percent(value));
+        $(barId).css("width", value + "%");
+        $(labelId).toggleClass("neg", value < 30);
+    }
+
+    bar("#mobileReach", "#mobileBar", summary.mobile, summary.mobile_perc);
+    bar("#emailReach", "#emailBar", summary.email, summary.email_perc);
+    bar("#dobReach", "#dobBar", summary.dob, summary.dob_perc);
+}
+
 function monthYearName(value) {
     var text = String(value || "").substring(0, 10);
     var month = parseInt(text.substring(5, 7), 10);
@@ -126,7 +141,6 @@ $(function () {
     var supplierChart = null;
     var trendChart = null;
     var stateChart = null;
-    var genderChart = null;
     var summaryTimer = null;
     var summaryRequest = 0;
     var fillingFilters = false;
@@ -311,6 +325,7 @@ $(function () {
                     chartTrend();
                     fillCharityTable();
                     fillFundraiserTable();
+                    fillEngagement(dashboard.summary[0]);
     
                     $('#summaryLoading').hide();
                     $('#summaryView').show();
@@ -409,47 +424,6 @@ $(function () {
                                     label: function (context) {
                                         var row = stateRows[context.dataIndex] || {};
                                         return " " + row.total;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        var genderRows = (dashboard && dashboard.genderDemographics) || [];
-        var gender = genderRows[0];
-
-        if ($("#genderChart").length) {
-            if (genderChart) genderChart.destroy();
-            genderChart = null;
-            if (gender) {
-                genderChart = new Chart($("#genderChart")[0], {
-                    type: "pie",
-                    data: {
-                        labels: [
-                            "Female " + percent(Number(gender.female_Percent) || 0),
-                            "Male " + percent(Number(gender.male_Percent) || 0)
-                        ],
-                        datasets: [{
-                            data: [gender.female, gender.male],
-                            backgroundColor: ["#6fa8dc", "#2c8a9e"],
-                            borderColor: "#1e1e1e",
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: pieOptions.plugins.legend,
-                            tooltip: {
-                                callbacks: {
-                                    label: function (context) {
-                                        var count = context.dataIndex === 0 ? gender.female : gender.male;
-                                        var share = context.dataIndex === 0 ? gender.female_Percent : gender.male_Percent;
-                                        return " " + count;
                                     }
                                 }
                             }
@@ -604,31 +578,34 @@ $(function () {
             name = name == "" ? "Unknown" : name;
             var actual_name = row.supplier == "" ? "Unknown" : row.supplier;
             var fr = (row.firstName || row.surname || "") + "[" + row.operatorNo + "]";
+            console.log(row);
 
             $("#fundraiserTable tbody").append(
                 "<tr>"
                 + "<td>" + fr + "</td>"
                 + "<td><span class='agency-badge badge-" + actual_name + "'>" + name + "</span></td>"
+                + "<td data-order='" + row.total_Donation + "'>" + row.total_Donation + "</td>"
                 + "<td class='num' data-order='" + row.total_Raised + "'>" + money(row.total_Raised) + "</td>"
                 + "<td class='num' data-order='" + row.cc_dd_total + "'>" + money(row.cc_dd_total) + "</td>"
-                + "<td class='num' data-order='" + row.so_total + "'>" + money(row.so_total) + "</td>"
-                + "<td class='num' data-order='" + row.ho_total + "'>" + money(row.ho_total) + "</td>"
+                // + "<td class='num' data-order='" + row.cc_dd_total_count + "'>" + row.cc_dd_total_count + "</td>"
+                // + "<td class='pos' data-order='" + row.so_total_p + "'>" + percent(row.so_total_p) + "</td>"
+                + "<td class='num' data-order='" + row.so_total_p + "'>" + money(row.so_total_p) + "</td>"
+                // + "<td class='num' data-order='" + row.so_total_count + "'>" + row.so_total_count + "</td>"
+                + "<td class='num neg' data-order='" + row.decline_rate + "'>" + percent(row.decline_rate) + " (" + row.cc_dd_decline_count + ")" + "</td>"
+                + "<td class='num orange' data-order='" + row.so_return_rate + "'>" + percent(row.so_return_rate) + "</td>"
                 + "</tr>"
             );
-        });
-
+        });  
         fundraiserTable = $("#fundraiserTable").DataTable({
             paging: true,
             pageLength: 10,
             lengthMenu: [[10, 20, 50, -1], [10, 20, 50, "All"]],
             searching: true,
             info: false,
-            order: [[2, "desc"]],
+            order: [[3, "desc"]],
             autoWidth: false,
             dom: "lBfrtp",
             buttons: [
-                { extend: "copy", text: "Copy" },
-                { extend: "csv", text: "CSV", title: "Fundraiser Performance" },
                 { extend: "excel", text: "Excel", title: "Fundraiser Performance" }
             ]
         });
@@ -680,7 +657,7 @@ $(function () {
 
             var declined_rate = row.declined_rate;
             var declined_count = row.declined_count;
-        
+
             $("#clientTable tbody").append(
                 "<tr>"
                 + "<td>" + row.charity + "</td>"
@@ -700,13 +677,11 @@ $(function () {
             lengthMenu: [[10, 20, 50, -1], [10, 20, 50, "All"]],
             searching: true,
             info: false,
-            order: [[4, "desc"]],
+            order: [[3, "desc"]],
             autoWidth: false,
             dom: "lBfrtp",
             buttons: [
-                { extend: "copy", text: "Copy" },
-                { extend: "csv", text: "CSV", title: "Charities" },
-                { extend: "excel", text: "Excel", title: "Charities" }
+                { extend: "excel", text: "Excel", title: "Campaign Performance" }
             ]
         });
     }
@@ -787,32 +762,7 @@ $(function () {
                     $('#clientTier100').text(clientDashboard.summary[0].tier100);
                     $('#clientTier200').text(clientDashboard.summary[0].tier200);
 
-                    $("#mobileReach").text(clientDashboard.summary[0].mobile + " · " + percent(clientDashboard.summary[0].mobile_perc));
-                    $("#mobileBar").css("width", clientDashboard.summary[0].mobile_perc + "%");
-                    if (clientDashboard.summary[0].mobile_perc < 30) {
-                        $("#mobileReach").addClass("neg");
-                    }
-                    else {
-                        $("#mobileReach").removeClass("neg");
-                    }
-
-                    $("#emailReach").text(clientDashboard.summary[0].email + " · " + percent(clientDashboard.summary[0].email_perc));
-                    $("#emailBar").css("width", clientDashboard.summary[0].email_perc + "%");
-                    if (clientDashboard.summary[0].email_perc < 30) {
-                        $("#emailReach").addClass("neg");
-                    }
-                    else {
-                        $("#emailReach").removeClass("neg");
-                    }
-
-                    $("#dobReach").text(clientDashboard.summary[0].dob + " · " + percent(clientDashboard.summary[0].dob_perc));
-                    $("#dobBar").css("width", clientDashboard.summary[0].dob_perc + "%");
-                    if (clientDashboard.summary[0].dob_perc < 30) {
-                        $("#dobReach").addClass("neg");
-                    }
-                    else {
-                        $("#dobReach").removeClass("neg");
-                    }
+                    fillEngagement(clientDashboard.summary[0]);
 
                     chartChannels();
                     chartTiers();
@@ -940,24 +890,24 @@ $(function () {
         });
     }
 
-    $(".viewtab").on("click", function () {
-        if ($(this).data("view") !== "client") return;
-        $(".viewtab").removeClass("active");
-        $(this).addClass("active");
-        $("#clientView").show();
-        $("#clientDetail, #summaryView, #summaryLoading").hide();
+    // $(".viewtab").on("click", function () {
+    //     if ($(this).data("view") !== "client") return;
+    //     $(".viewtab").removeClass("active");
+    //     $(this).addClass("active");
+    //     $("#clientView").show();
+    //     $("#clientDetail, #summaryView, #summaryLoading").hide();
 
-        is_client_view = true;
-        is_summary_view = false;
+    //     is_client_view = true;
+    //     is_summary_view = false;
 
-        $("#clientFilter, #supplierFilter, #campaignFilter").val(["ALL"]).trigger("multi:sync");
-        $("#clientAgency").val(["ALL"]).trigger("change.select2");
-        supplier = "ALL";
-        charity = "ALL";
-        campaign = "ALL";
+    //     $("#clientFilter, #supplierFilter, #campaignFilter").val(["ALL"]).trigger("multi:sync");
+    //     $("#clientAgency").val(["ALL"]).trigger("change.select2");
+    //     supplier = "ALL";
+    //     charity = "ALL";
+    //     campaign = "ALL";
 
-        loadClientView();
-    });
+    //     loadClientView();
+    // });
 
     $('#clientAgency').on("change", function () {
         supplier = ($(this).val() || ["ALL"]).join(",");

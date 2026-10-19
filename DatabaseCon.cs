@@ -258,9 +258,16 @@ namespace ACQFundraisingDashboard
                             Surname = ReadString(reader, "Surname"),
                             FirstName = ReadString(reader, "FirstName"),
                             Total_Raised = ReadDecimal(reader, "Total_Raised"),
+                            Total_Donation = ReadInt(reader, "Total_Donation"),
                             cc_dd_total = ReadDecimal(reader, "cc_dd_total"),
-                            so_total = ReadDecimal(reader, "so_total"),
-                            ho_total = ReadDecimal(reader, "ho_total")
+                            cc_dd_total_count = ReadInt(reader, "cc_dd_total_count"),
+                            so_total_p = ReadDecimal(reader, "so_total_p"),
+                            so_total_r = ReadDecimal(reader, "so_total_r"),
+                            so_total_r_count = ReadInt(reader, "so_total_r_count"),
+                            so_total_count = ReadInt(reader, "so_total_count"),
+                            cc_dd_decline_count = ReadInt(reader, "cc_dd_decline_count"),
+                            decline_rate = ReadDecimal(reader, "decline_rate"),
+                            so_return_rate = ReadDecimal(reader, "so_return_rate"),
                         });
                     }
 

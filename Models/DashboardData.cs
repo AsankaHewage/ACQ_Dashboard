@@ -191,9 +191,16 @@ namespace ACQFundraisingDashboard.Models
         public string Surname { get; set; }
         public string FirstName { get; set; }
         public decimal Total_Raised { get; set; }
+        public int Total_Donation { get; set; }
         public decimal cc_dd_total { get; set; }
-        public decimal so_total { get; set; }
-        public decimal ho_total { get; set; }
+        public int cc_dd_total_count { get; set; }
+        public decimal so_total_p { get; set; }
+        public decimal so_total_r { get; set; }
+        public int so_total_r_count { get; set; }
+        public int so_total_count { get; set; }
+        public int cc_dd_decline_count { get; set; }
+        public decimal decline_rate { get; set; }
+        public decimal so_return_rate { get; set; }
     }
 
     // Result set 10. State demographics, used for the state demographics table.

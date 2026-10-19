@@ -19,8 +19,8 @@
             <p class="criteria-label">View</p>
             <div class="viewtabs">
                 <button type="button" class="viewtab active" data-view="summary">Summary</button>
-                <button type="button" class="viewtab" data-view="client">Client performance</button>
-                <button type="button" class="viewtab" data-view="supplier">Supplier performance</button>
+                <button type="button" class="viewtab" data-view="client" disabled style="opacity:0.5; pointer-events:none;">Client performance</button>
+                <button type="button" class="viewtab" data-view="supplier" disabled style="opacity:0.5; pointer-events:none;">Supplier performance</button>
             </div>
 
             <p class="criteria-label">Filters</p>
@@ -124,7 +124,7 @@
             </div>
 
             <div class="panel" style="margin-bottom:20px;">
-                <h3>SO Return % across shown charities — Last 6 months</h3>
+                <h3>$SO Return % across shown charities — Last 6 months</h3>
                 <div class="chart-wrap" style="height:180px;">
                     <canvas id="trendChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas>
                 </div>
@@ -155,10 +155,12 @@
                         <tr>
                             <th>FR</th>
                             <th>Supplier</th>
+                            <th>Donations</th>
                             <th class="num">Raised</th>
                             <th class="num">CC/DD</th>
                             <th class="num">SO</th>
-                            <th class="num">WEB (HO)</th>
+                            <th class="num">Decline Rate</th>
+                            <th class="num">#SO Return Rate</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -167,15 +169,41 @@
 
             <div class="demo-pies">
                 <div class="panel">
-                    <h3>State</h3>
+                    <h3>Fund Raise by State</h3>
                     <div class="chart-wrap" style="height:220px;">
                         <canvas id="stateChart" role="img" aria-label="Pie chart of donors by state"></canvas>
                     </div>
                 </div>
                 <div class="panel">
-                    <h3>Gender</h3>
-                    <div class="chart-wrap" style="height:220px;">
-                        <canvas id="genderChart" role="img" aria-label="Pie chart of donors by gender"></canvas>
+                    <h3>Engagement reach</h3>
+                    <div id="engagement">
+                        <div style="margin-bottom:14px;">
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>Mobile</span>
+                                <span id="mobileReach"></span>
+                            </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="mobileBar" style="width:0;background:#2c8a9e;height:100%;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:14px;">
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>Email</span>
+                                <span id="emailReach"></span>
+                            </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="emailBar" style="width:0;background:#2c8a9e;height:100%;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>DOB</span>
+                                <span id="dobReach"></span>
+                            </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="dobBar" style="width:0;background:#2c8a9e;height:100%;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -213,38 +241,6 @@
                         <h3>Channel breakdown</h3>
                         <div class="chart-wrap" style="height:220px;">
                             <canvas id="channelChart" role="img" aria-label="Bar chart of dollars raised by channel"></canvas>
-                        </div>
-                    </div>
-                    <div class="panel">
-                        <h3>Engagement reach</h3>
-                        <div id="engagement">
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>Mobile</span>
-                                    <span id="mobileReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="mobileBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
-                            </div>
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>Email</span>
-                                    <span id="emailReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="emailBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
-                            </div>
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>DOB</span>
-                                    <span id="dobReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="dobBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
