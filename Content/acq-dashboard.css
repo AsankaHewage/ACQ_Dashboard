@@ -51,7 +51,9 @@ header p.criteria-label{
   color:var(--muted);
 }
 .criteria .criteria-label + .criteria-label,
-.criteria .viewtabs + .criteria-label{ margin-top:22px; }
+.criteria .view-row + .criteria-label{ margin-top:22px; }
+.criteria.is-compare{ max-width:1240px; }
+.criteria.is-compare.is-custom{ max-width:1480px; }
 .filter-grid{
   display:grid;
   grid-template-columns:repeat(4, minmax(0, 1fr)) auto;
@@ -110,6 +112,16 @@ header p.criteria-label{
 .filter-multi-option.on{ background:var(--teal-dim); }
 header p#monthRange{ margin-top:14px; text-align:center; }
 
+.view-row{
+  display:flex;
+  align-items:stretch;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.view-row .viewtabs{
+  flex:1 1 640px;
+  min-width:min(100%, 520px);
+}
 .viewtabs{
   display:flex; margin-top:0;
 }
@@ -127,6 +139,72 @@ header p#monthRange{ margin-top:14px; text-align:center; }
   position:relative; z-index:1;
 }
 .viewtab:hover{ color:var(--white); }
+.view-row > .compare-tab{
+  flex:0 0 auto;
+  margin-left:auto;
+  border-radius:4px;
+  padding-left:28px;
+  padding-right:28px;
+}
+#compareTypeField,
+#compareFromField,
+#compareToField{ display:none; }
+.criteria.is-compare #periodField{ display:none; }
+.criteria.is-compare #compareTypeField{ display:block; }
+.criteria.is-compare .filter-grid{
+  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(320px, 1.8fr) auto;
+}
+.criteria.is-compare.is-custom #compareFromField,
+.criteria.is-compare.is-custom #compareToField{ display:block; }
+.criteria.is-compare.is-custom .filter-grid{
+  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(360px, 1.7fr) minmax(160px, 0.7fr) minmax(160px, 0.7fr) auto;
+}
+#compareTypeField,
+#compareFromField,
+#compareToField{ min-width:0; }
+#compareTypeField{ overflow:hidden; }
+.compare-types{ display:flex; min-width:0; width:100%; }
+.compare-type{
+  flex:1 1 0;
+  appearance:none;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--muted);
+  margin-left:-1px;
+  padding:8px 6px;
+  border-radius:0;
+  font-size:11px;
+  line-height:1.2;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+  font-family:inherit;
+  cursor:pointer;
+  white-space:nowrap;
+  min-width:0;
+}
+.compare-type:first-child{ margin-left:0; border-radius:4px 0 0 4px; }
+.compare-type:last-child{ border-radius:0 4px 4px 0; }
+.compare-type.active{
+  border-color:var(--teal);
+  color:var(--white);
+  background:var(--teal-dim);
+  position:relative;
+  z-index:1;
+}
+.compare-type:hover{ color:var(--white); }
+input[type="date"],
+input[type="month"]{
+  background:var(--card);
+  color:var(--white);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:8px 12px;
+  font-size:13px;
+  width:100%;
+  font-family:inherit;
+  color-scheme:dark;
+  min-width:0;
+}
 
 .controls{
   position:sticky; top:0; z-index:10;
@@ -213,6 +291,16 @@ main{ max-width:1400px; margin:0 auto; padding:24px; }
 .kpi .value{ font-size:26px; font-weight:600; margin:0; }
 .kpi .value.green{ color:var(--green); }
 .kpi .value.red{ color:var(--red); }
+.kpi .delta{ margin:8px 0 0; font-size:12.5px; color:var(--muted); }
+.kpi .delta.pos{ color:var(--green); }
+.kpi .delta.neg{ color:var(--red); }
+.compare-block{ margin-bottom:16px; }
+.compare-charts{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.compare-table-wrap{ overflow-x:auto; }
+#compareClientTable td.num,
+#compareClientTable th.num,
+#compareSupplierTable td.num,
+#compareSupplierTable th.num{ text-align:right; }
 .tier-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
 .tier-grid div{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
 .tier-k{ font-size:11.5px; color:var(--muted); }
@@ -365,12 +453,17 @@ div.dt-button-info > div{ color:var(--muted) !important; }
 
 .legacy-controls{ display:none; }
 @media (max-width:900px){
-  .grid2, .demo-pies{ grid-template-columns:1fr; }
-  .filter-grid{ grid-template-columns:1fr 1fr; }
+  .grid2, .demo-pies, .compare-charts{ grid-template-columns:1fr; }
+  .filter-grid,
+  .criteria.is-compare .filter-grid,
+  .criteria.is-compare.is-custom .filter-grid{ grid-template-columns:1fr 1fr; }
+  .criteria.is-compare #compareTypeField{ grid-column:1 / -1; }
 }
 @media (max-width:640px){
   header{ padding:22px 16px 14px; }
   main{ padding:16px; }
   .controls{ padding:10px 16px; }
-  .filter-grid{ grid-template-columns:1fr; }
+  .filter-grid,
+  .criteria.is-compare .filter-grid,
+  .criteria.is-compare.is-custom .filter-grid{ grid-template-columns:1fr; }
 }

@@ -51,6 +51,8 @@ var runRaisedChart = function () {};
 
 var is_summary_view = true;
 var is_client_view = false;
+var is_compare_view = false;
+var runCompare = function () {};
 
 //need to dynamic
 var suppliers = [
@@ -100,6 +102,7 @@ $(function () {
         month = parseInt($("#periodFilter").val(), 10) || 0;
         if (is_summary_view) runSummary();
         else if (is_client_view) runClient();
+        else if (is_compare_view) runCompare();
     });
 })
 
@@ -691,14 +694,296 @@ $(function () {
         $(".viewtab").removeClass("active");
         $(this).addClass("active");
         $("#summaryView").show();
-        $("#clientView, #clientLoading").hide();
+        $("#clientView, #clientLoading, #compareView").hide();
+        $(".criteria").removeClass("is-compare");
 
         is_summary_view = true;
         is_client_view = false;
+        is_compare_view = false;
 
         selectAllSummary();
         loadSummary();
     });
+
+    $("#compareViewBtn").on("click", function () {
+        $(".viewtab").removeClass("active");
+        $(this).addClass("active");
+        $("#summaryView, #summaryLoading, #clientView, #clientLoading").hide();
+        $("#compareView").show();
+        $(".criteria").addClass("is-compare");
+
+        is_summary_view = false;
+        is_client_view = false;
+        is_compare_view = true;
+        loadCompare();
+    });
+
+    $(".compare-type").on("click", function () {
+        $(".compare-type").removeClass("active");
+        $(this).addClass("active");
+        $(".criteria").toggleClass("is-custom", $(this).data("compare") === "custom");
+    });
+
+    var compareChart = null;
+    var compareRateChart = null;
+    var compareRequest = 0;
+
+    function loadCompare() {
+        var request = ++compareRequest;
+        var compareType = $(".compare-type.active").data("compare") || "month";
+        var from = $("#compareFrom").val();
+        var to = $("#compareTo").val();
+
+        if (compareType === "custom" && (!from || !to || to < from)) {
+            $("#compareLoading, #compareDetail").hide();
+            $("#compareEmpty").text("Choose a from month and a to month, then Apply.").show();
+            $("#monthRange").text("");
+            return;
+        }
+
+        $("#compareEmpty, #compareDetail").hide();
+        $("#compareLoading").show();
+        $("#compareLoadingMessage").text("Comparing periods…");
+        $("#monthRange").text("");
+
+        $.ajax({
+            url: compareUrl,
+            type: "GET",
+            dataType: "json",
+            data: { supplier: supplier, charity: charity, campaign: campaign, compareType: compareType, from: from, to: to }
+        })
+        .done(function (data) {
+            if (request !== compareRequest || !is_compare_view) return;
+            $("#compareLoading").hide();
+            if (!data.periods || !data.periods.length) {
+                $("#compareDetail").hide();
+                $("#compareEmpty").text(data.message || "No comparison for this range.").show();
+                return;
+            }
+
+            $("#compareEmpty").hide();
+            renderCompare(data);
+            $("#compareDetail").show();
+            var first = data.periods[0];
+            var last = data.periods[data.periods.length - 1];
+            $("#monthRange").text(monthYearDateLabel(first.start) + " - " + monthYearDateLabel(last.end));
+        })
+        .fail(function () {
+            if (request !== compareRequest || !is_compare_view) return;
+            $("#compareLoading, #compareDetail").hide();
+            $("#compareEmpty").text("Comparison could not be loaded.").show();
+        });
+    }
+
+    function renderCompare(data) {
+        var periods = data.periods;
+        var current = periods[periods.length - 1];
+        var previous = periods.length > 1 ? periods[periods.length - 2] : null;
+
+        $("#cmpRaised").text(money(current.raised));
+        $("#cmpDonations").text(current.donations);
+        $("#cmpAvgGift").text(money(current.avgGift));
+        $("#cmpDeclined").text(percent(current.declinedRate));
+        $("#cmpSoReturn").text(current.soReturn == null ? "—" : percent(current.soReturn));
+
+        setDelta("#cmpRaisedDelta", previous && signedMoney(current.raised, previous.raised), previous && current.raised - previous.raised);
+        setDelta("#cmpDonationsDelta", previous && signedCount(current.donations, previous.donations), previous && current.donations - previous.donations);
+        setDelta("#cmpAvgGiftDelta", previous && signedMoney(current.avgGift, previous.avgGift), previous && current.avgGift - previous.avgGift);
+        setDelta("#cmpDeclinedDelta", previous && signedPoints(current.declinedRate, previous.declinedRate), previous && previous.declinedRate - current.declinedRate);
+        setDelta("#cmpSoReturnDelta", previous && signedPoints(current.soReturn, previous.soReturn), previous && current.soReturn != null && previous.soReturn != null && current.soReturn - previous.soReturn);
+
+        drawCompareChart(periods);
+        drawCompareRateChart(periods);
+        fillCompareTable("#compareClientTable", "Client", data.byClient || [], periods);
+        fillCompareTable("#compareSupplierTable", "Supplier", data.bySupplier || [], periods);
+    }
+
+    function setDelta(selector, text, direction) {
+        var el = $(selector);
+        el.removeClass("pos neg").text(text || "");
+        if (!text || !direction) return;
+        el.addClass(direction > 0 ? "pos" : "neg");
+    }
+
+    function signedCount(current, previous) {
+        if (previous == null) return "";
+        return signedAmount(current - previous, false) + changeShare(current, previous);
+    }
+
+    function signedPoints(current, previous) {
+        if (current == null || previous == null) return "";
+        var diff = Number(current) - Number(previous);
+        var body = Math.abs(diff).toFixed(2) + "%";
+        if (diff > 0) return "+" + body;
+        if (diff < 0) return "-" + body;
+        return body;
+    }
+
+    function signedMoney(current, previous) {
+        if (previous == null) return "";
+        return signedAmount(current - previous, true) + changeShare(current, previous);
+    }
+
+    function signedAmount(diff, asMoney) {
+        var body = asMoney ? money(Math.abs(diff)) : String(Math.abs(diff));
+        if (diff > 0) return "+" + body;
+        if (diff < 0) return "-" + body;
+        return body;
+    }
+
+    function changeShare(current, previous) {
+        if (!previous) return "";
+        var pct = ((current - previous) / previous) * 100;
+        var sign = pct > 0 ? "+" : "";
+        return " · " + sign + pct.toFixed(1) + "%";
+    }
+
+    function drawCompareChart(periods) {
+        if (compareChart) compareChart.destroy();
+        compareChart = new Chart($("#compareChart")[0], {
+            data: {
+                labels: periods.map(function (period) { return period.label; }),
+                datasets: [
+                    {
+                        type: "bar",
+                        label: "Raised",
+                        data: periods.map(function (period) { return period.raised; }),
+                        backgroundColor: "#2c8a9e",
+                        yAxisID: "y",
+                        order: 2
+                    },
+                    {
+                        type: "line",
+                        label: "Donations",
+                        data: periods.map(function (period) { return period.donations; }),
+                        borderColor: "#e8a33d",
+                        backgroundColor: "#e8a33d",
+                        tension: 0.3,
+                        pointRadius: 4,
+                        yAxisID: "y1",
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: "#9a9a93", boxWidth: 10 } }
+                },
+                scales: {
+                    y: {
+                        position: "left",
+                        grid: { color: "#2c2c2a" },
+                        ticks: { color: "#9a9a93", callback: function (value) { return "$" + Number(value).toLocaleString(); } }
+                    },
+                    y1: {
+                        position: "right",
+                        grid: { display: false },
+                        ticks: { color: "#9a9a93" }
+                    },
+                    x: { grid: { display: false }, ticks: { color: "#9a9a93" } }
+                }
+            }
+        });
+    }
+
+    function drawCompareRateChart(periods) {
+        if (compareRateChart) compareRateChart.destroy();
+        compareRateChart = new Chart($("#compareRateChart")[0], {
+            data: {
+                labels: periods.map(function (period) { return period.label; }),
+                datasets: [
+                    {
+                        type: "line",
+                        label: "Avg. gift",
+                        data: periods.map(function (period) { return period.avgGift; }),
+                        borderColor: "#2c8a9e",
+                        backgroundColor: "#2c8a9e",
+                        tension: 0.3,
+                        pointRadius: 4,
+                        yAxisID: "y"
+                    },
+                    {
+                        type: "line",
+                        label: "SO return %",
+                        data: periods.map(function (period) { return period.soReturn; }),
+                        borderColor: "#e8a33d",
+                        backgroundColor: "#e8a33d",
+                        tension: 0.3,
+                        pointRadius: 4,
+                        spanGaps: false,
+                        yAxisID: "y1"
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: "#9a9a93", boxWidth: 10 } }
+                },
+                scales: {
+                    y: {
+                        position: "left",
+                        grid: { color: "#2c2c2a" },
+                        ticks: { color: "#9a9a93", callback: function (value) { return "$" + Number(value).toLocaleString(); } }
+                    },
+                    y1: {
+                        position: "right",
+                        grid: { display: false },
+                        ticks: { color: "#9a9a93", callback: function (value) { return value + "%"; } }
+                    },
+                    x: { grid: { display: false }, ticks: { color: "#9a9a93" } }
+                }
+            }
+        });
+    }
+
+    function fillCompareTable(selector, nameHeading, rows, periods) {
+        var grouped = {};
+        var names = [];
+        rows.forEach(function (row) {
+            if (!grouped[row.name]) {
+                grouped[row.name] = {};
+                names.push(row.name);
+            }
+            grouped[row.name][row.label] = row;
+        });
+
+        var lastLabel = periods[periods.length - 1].label;
+        var prevLabel = periods.length > 1 ? periods[periods.length - 2].label : null;
+        names.sort(function (a, b) {
+            var av = grouped[a][lastLabel] ? Number(grouped[a][lastLabel].raised) : 0;
+            var bv = grouped[b][lastLabel] ? Number(grouped[b][lastLabel].raised) : 0;
+            return bv - av;
+        });
+
+        var head = "<tr><th>" + nameHeading + "</th>";
+        periods.forEach(function (period) {
+            head += "<th class='num'>" + period.label + "</th>";
+        });
+        head += "<th class='num'>Change</th></tr>";
+
+        var body = "";
+        names.forEach(function (name) {
+            var display = name === "QUINN" ? "QDF" : (name || "Unknown");
+            body += "<tr><td>" + display + "</td>";
+            periods.forEach(function (period) {
+                var amount = grouped[name][period.label] ? grouped[name][period.label].raised : 0;
+                body += "<td class='num'>" + money(amount) + "</td>";
+            });
+            var current = grouped[name][lastLabel] ? Number(grouped[name][lastLabel].raised) : 0;
+            var previous = prevLabel && grouped[name][prevLabel] ? Number(grouped[name][prevLabel].raised) : 0;
+            var diff = current - (prevLabel ? previous : current);
+            var cls = diff > 0 ? "pos" : diff < 0 ? "neg" : "";
+            body += "<td class='num " + cls + "'>" + (prevLabel ? signedMoney(current, previous) : "") + "</td></tr>";
+        });
+
+        $(selector).html("<thead>" + head + "</thead><tbody>" + body + "</tbody>");
+    }
+
+    runCompare = loadCompare;
 
     function selectAllSummary() {
         $("#clientFilter, #supplierFilter, #campaignFilter").val(["ALL"]).trigger("multi:sync");

@@ -17,10 +17,13 @@
         <h1>ACQ Fundraising Dashboard</h1>
         <div class="criteria">
             <p class="criteria-label">View</p>
-            <div class="viewtabs">
-                <button type="button" class="viewtab active" data-view="summary">Summary</button>
-                <button type="button" class="viewtab" data-view="client" disabled style="opacity:0.5; pointer-events:none;">Client performance</button>
-                <button type="button" class="viewtab" data-view="supplier" disabled style="opacity:0.5; pointer-events:none;">Supplier performance</button>
+            <div class="view-row">
+                <div class="viewtabs">
+                    <button type="button" class="viewtab active" data-view="summary">Summary</button>
+                    <button type="button" class="viewtab" data-view="client" disabled style="opacity:0.5; pointer-events:none;">Client performance</button>
+                    <button type="button" class="viewtab" data-view="supplier" disabled style="opacity:0.5; pointer-events:none;">Supplier performance</button>
+                </div>
+                <button type="button" class="viewtab compare-tab" id="compareViewBtn" data-view="compare">Compare</button>
             </div>
 
             <p class="criteria-label">Filters</p>
@@ -43,7 +46,7 @@
                         <option value="ALL">All suppliers</option>
                     </select>
                 </label>
-                <label class="filter-field">
+                <label class="filter-field" id="periodField">
                     <span>Period</span>
                     <select id="periodFilter">
                         <option value="0" selected>Current month</option>
@@ -51,6 +54,22 @@
                         <option value="3">Last 3 months</option>
                         <option value="6">Last 6 months</option>
                     </select>
+                </label>
+                <label class="filter-field" id="compareTypeField">
+                    <span>Compare type</span>
+                    <div class="compare-types" role="group" aria-label="Compare type">
+                        <button type="button" class="compare-type active" data-compare="month">Month to month</button>
+                        <button type="button" class="compare-type" data-compare="ytd">Year to date</button>
+                        <button type="button" class="compare-type" data-compare="custom">Custom range</button>
+                    </div>
+                </label>
+                <label class="filter-field" id="compareFromField">
+                    <span>From</span>
+                    <input type="month" id="compareFrom" />
+                </label>
+                <label class="filter-field" id="compareToField">
+                    <span>To</span>
+                    <input type="month" id="compareTo" />
                 </label>
                 <div class="filter-apply">
                     <button type="button" id="applyFilters" class="btn">Apply</button>
@@ -78,6 +97,49 @@
         <div id="summaryLoading" class="empty" style="display:none;">
             <div class="spinner" aria-hidden="true"></div>
             <p id="summaryLoadingMessage"></p>
+        </div>
+
+        <div id="compareView" style="display:none;">
+            <div id="compareLoading" class="empty" style="display:none;">
+                <div class="spinner" aria-hidden="true"></div>
+                <p id="compareLoadingMessage"></p>
+            </div>
+            <p id="compareEmpty" class="empty">Comparison results will appear here.</p>
+            <div id="compareDetail" style="display:none;">
+                <div class="kpis">
+                    <div class="kpi"><p class="label">Total raised</p><p class="value" id="cmpRaised"></p><p class="delta" id="cmpRaisedDelta"></p></div>
+                    <div class="kpi"><p class="label">Total donations</p><p class="value" id="cmpDonations"></p><p class="delta" id="cmpDonationsDelta"></p></div>
+                    <div class="kpi"><p class="label">Avg. gift</p><p class="value" id="cmpAvgGift"></p><p class="delta" id="cmpAvgGiftDelta"></p></div>
+                    <div class="kpi"><p class="label">Declined rate</p><p class="value" id="cmpDeclined"></p><p class="delta" id="cmpDeclinedDelta"></p></div>
+                    <div class="kpi"><p class="label">SO return %</p><p class="value" id="cmpSoReturn"></p><p class="delta" id="cmpSoReturnDelta"></p></div>
+                </div>
+                <div class="compare-charts">
+                    <div class="panel">
+                        <h3>Raised and donations</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="compareChart" role="img" aria-label="Raised and donations across the compared periods"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>Avg. gift and SO return %</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="compareRateChart" role="img" aria-label="Average gift and standing order return percent across the compared periods"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel compare-block">
+                    <h3>Raised by client</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareClientTable"></table>
+                    </div>
+                </div>
+                <div class="panel compare-block">
+                    <h3>Raised by supplier</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareSupplierTable"></table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="summaryView">
@@ -273,6 +335,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         var dashboardUrl = '@Url.Action("Dashboard", "Home")';
+        var compareUrl = '@Url.Action("Compare", "Home")';
     </script>
     <script src="~/Scripts/acq-dashboard.js"></script>
 </body>

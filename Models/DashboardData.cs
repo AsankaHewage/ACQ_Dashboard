@@ -112,6 +112,11 @@ namespace ACQFundraisingDashboard.Models
         public decimal L7p { get; set; }
         public decimal L7r { get; set; }
         public decimal L7p_L7r_perc { get; set; }
+        // Standing-order pledged and return percent for the selected date range.
+        public DateTime C1date { get; set; }
+        public decimal C1p { get; set; }
+        public decimal C1r { get; set; }
+        public decimal C1p_C1r_perc { get; set; }
     }
 
     // Result set 1. Raised amount for one charity, used by the bar chart.
@@ -218,5 +223,46 @@ namespace ACQFundraisingDashboard.Models
         public int Female { get; set; }
         public decimal Male_Percent { get; set; }
         public decimal Female_Percent { get; set; }
+    }
+
+    // One period in a comparison. Change against the previous period is calculated on the page.
+    public class ComparePeriod
+    {
+        public string Label { get; set; }
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public decimal Raised { get; set; }
+        public int Donations { get; set; }
+        public decimal AvgGift { get; set; }
+        public int DeclinedCount { get; set; }
+        public decimal DeclinedRate { get; set; }
+        public decimal SoPledged { get; set; }
+        public decimal SoReceived { get; set; }
+        public decimal? SoReturn { get; set; }
+    }
+
+    // Raised and donations for one client or supplier inside one period.
+    public class CompareBreakdown
+    {
+        public string Name { get; set; }
+        public string Label { get; set; }
+        public decimal Raised { get; set; }
+        public int Donations { get; set; }
+    }
+
+    public class CompareData
+    {
+        public string CompareType { get; set; }
+        public string Message { get; set; }
+        public List<ComparePeriod> Periods { get; set; }
+        public List<CompareBreakdown> ByClient { get; set; }
+        public List<CompareBreakdown> BySupplier { get; set; }
+
+        public CompareData()
+        {
+            Periods = new List<ComparePeriod>();
+            ByClient = new List<CompareBreakdown>();
+            BySupplier = new List<CompareBreakdown>();
+        }
     }
 }

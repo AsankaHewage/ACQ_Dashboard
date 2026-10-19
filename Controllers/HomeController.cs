@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System;
+using System.Globalization;
 using System.Web.Mvc;
 
 namespace ACQFundraisingDashboard.Controllers
@@ -24,6 +25,27 @@ namespace ACQFundraisingDashboard.Controllers
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 });
             return Content(json, "application/json");
+        }
+
+        // Returns one row per period, plus client and supplier rows for those same periods.
+        public ActionResult Compare(string supplier, string charity, string campaign, string compareType, string from, string to)
+        {
+            var json = JsonConvert.SerializeObject(
+                DatabaseCon.GetCompare(supplier, charity, campaign, compareType, ParseDate(from), ParseDate(to)),
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                });
+            return Content(json, "application/json");
+        }
+
+        static DateTime? ParseDate(string value)
+        {
+            DateTime parsed;
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed)
+                || DateTime.TryParseExact(value, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+                return parsed.Date;
+            return null;
         }
 
         // Template pages. The dashboard does not use these.

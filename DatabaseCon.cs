@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Globalization;
+using System.Threading.Tasks;
 using ACQFundraisingDashboard.Models;
 
 namespace ACQFundraisingDashboard
@@ -143,6 +146,10 @@ namespace ACQFundraisingDashboard
                             L7p = ReadDecimal(reader, "L7p"),
                             L7r = ReadDecimal(reader, "L7r"),
                             L7p_L7r_perc = ReadDecimal(reader, "L7p_L7r_perc"),
+                            C1date = ReadDateTime(reader, "C1date"),
+                            C1p = ReadDecimal(reader, "C1p"),
+                            C1r = ReadDecimal(reader, "C1r"),
+                            C1p_C1r_perc = ReadDecimal(reader, "C1p_C1r_perc"),
 
                         });
                     }
@@ -298,7 +305,149 @@ namespace ACQFundraisingDashboard
                 }
             }
             return data;
-        } 
+        }
+
+        // Builds the compare periods and reads each one through the existing dashboard procedure.
+        public static CompareData GetCompare(string supplier, string charity, string campaign, string compareType, DateTime? from, DateTime? to)
+        {
+            var data = new CompareData();
+            string message;
+            var ranges = BuildCompareRanges(compareType, from, to, out message);
+            data.CompareType = compareType ?? "month";
+            data.Message = message;
+            if (ranges.Count == 0) return data;
+
+            charity = string.IsNullOrWhiteSpace(charity) ? "ALL" : charity;
+            supplier = string.IsNullOrWhiteSpace(supplier) ? "ALL" : supplier;
+            campaign = string.IsNullOrWhiteSpace(campaign) ? "ALL" : campaign;
+
+            var loaded = new DashboardData[ranges.Count];
+            Parallel.For(0, ranges.Count, i =>
+            {
+                loaded[i] = GetDashboard(ranges[i].Start, ranges[i].End, charity, supplier, campaign);
+            });
+
+            for (var i = 0; i < ranges.Count; i++)
+            {
+                var range = ranges[i];
+                var dashboard = loaded[i];
+                var summary = dashboard.Summary.Count > 0 ? dashboard.Summary[0] : null;
+                data.Periods.Add(new ComparePeriod
+                {
+                    Label = range.Label,
+                    Start = range.Start,
+                    End = range.End,
+                    Raised = summary == null ? 0 : summary.Total_donation_amount,
+                    Donations = summary == null ? 0 : summary.Total_donation_count,
+                    AvgGift = summary == null ? 0 : summary.Avg_gift,
+                    DeclinedCount = summary == null ? 0 : summary.Total_declined_count,
+                    DeclinedRate = summary == null ? 0 : summary.Total_declined_rate,
+                    SoPledged = summary == null ? 0 : summary.C1p,
+                    SoReceived = summary == null ? 0 : summary.C1r,
+                    SoReturn = summary == null ? (decimal?)null : summary.C1p_C1r_perc
+                });
+
+                foreach (var row in dashboard.RaisedByCharity)
+                {
+                    data.ByClient.Add(new CompareBreakdown
+                    {
+                        Name = row.Charity,
+                        Label = range.Label,
+                        Raised = row.Total_donation_amount,
+                        Donations = Convert.ToInt32(row.Total_donation_count)
+                    });
+                }
+
+                foreach (var row in dashboard.RaisedBySupplier)
+                {
+                    data.BySupplier.Add(new CompareBreakdown
+                    {
+                        Name = row.Supplier,
+                        Label = range.Label,
+                        Raised = row.Total_donation_amount,
+                        Donations = row.Total_donation_count
+                    });
+                }
+            }
+
+            return data;
+        }
+
+        class CompareRange
+        {
+            public string Label { get; set; }
+            public DateTime Start { get; set; }
+            public DateTime End { get; set; }
+        }
+
+        static List<CompareRange> BuildCompareRanges(string compareType, DateTime? from, DateTime? to, out string message)
+        {
+            message = null;
+            var type = (compareType ?? "month").ToLowerInvariant();
+            var ranges = new List<CompareRange>();
+
+            if (type == "ytd")
+            {
+                AddCompleteMonths(ranges, 12);
+                return ranges;
+            }
+
+            if (type == "custom")
+            {
+                if (!from.HasValue || !to.HasValue)
+                {
+                    message = "Choose a from month and a to month.";
+                    return ranges;
+                }
+
+                var start = new DateTime(from.Value.Year, from.Value.Month, 1);
+                var endMonth = new DateTime(to.Value.Year, to.Value.Month, 1);
+                if (endMonth < start)
+                {
+                    message = "The to month is before the from month.";
+                    return ranges;
+                }
+
+                var count = ((endMonth.Year - start.Year) * 12) + endMonth.Month - start.Month + 1;
+                if (count > 24)
+                {
+                    message = "Choose a range of 24 months or less.";
+                    return ranges;
+                }
+
+                for (var month = start; month <= endMonth; month = month.AddMonths(1))
+                {
+                    ranges.Add(new CompareRange
+                    {
+                        Label = month.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+                        Start = month,
+                        End = month.AddMonths(1).AddDays(-1)
+                    });
+                }
+
+                return ranges;
+            }
+
+            AddCompleteMonths(ranges, 6);
+            return ranges;
+        }
+
+        // One column per finished month, ending with last month. 12 months from October 2026 is October 2025 through September 2026.
+        static void AddCompleteMonths(List<CompareRange> ranges, int count)
+        {
+            var firstOfThisMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            for (var i = count; i >= 1; i--)
+            {
+                var start = firstOfThisMonth.AddMonths(-i);
+                ranges.Add(new CompareRange
+                {
+                    Label = start.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+                    Start = start,
+                    End = start.AddMonths(1).AddDays(-1)
+                });
+            }
+        }
+
         // Null text from SQL becomes an empty string.
         static string ReadString(SqlDataReader reader, string column)
         {
