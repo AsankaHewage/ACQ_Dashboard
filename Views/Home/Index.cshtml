@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ACQ Fundraising Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="icon" href="~/favicon.ico?v=dts" type="image/x-icon" />
     <link href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" rel="stylesheet" />
     <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet" />
     <link href="~/Content/acq-dashboard.css" rel="stylesheet" />
@@ -20,10 +20,8 @@
             <div class="view-row">
                 <div class="viewtabs">
                     <button type="button" class="viewtab active" data-view="summary">Summary</button>
-                    <button type="button" class="viewtab" data-view="client" disabled style="opacity:0.5; pointer-events:none;">Client performance</button>
-                    <button type="button" class="viewtab" data-view="supplier" disabled style="opacity:0.5; pointer-events:none;">Supplier performance</button>
+                    <button type="button" class="viewtab" id="compareViewBtn" data-view="compare">Compare</button>
                 </div>
-                <button type="button" class="viewtab compare-tab" id="compareViewBtn" data-view="compare">Compare</button>
             </div>
 
             <p class="criteria-label">Filters</p>
@@ -53,13 +51,14 @@
                         <option value="1">Last month</option>
                         <option value="3">Last 3 months</option>
                         <option value="6">Last 6 months</option>
+                        <option value="12">Last 12 months</option>
                     </select>
                 </label>
                 <label class="filter-field" id="compareTypeField">
                     <span>Compare type</span>
                     <div class="compare-types" role="group" aria-label="Compare type">
-                        <button type="button" class="compare-type active" data-compare="month">Month to month</button>
-                        <button type="button" class="compare-type" data-compare="ytd">Year to date</button>
+                        <button type="button" class="compare-type active" data-compare="month">Last 6 months</button>
+                        <button type="button" class="compare-type" data-compare="ytd">Last 12 months</button>
                         <button type="button" class="compare-type" data-compare="custom">Custom range</button>
                     </div>
                 </label>
@@ -75,7 +74,6 @@
                     <button type="button" id="applyFilters" class="btn">Apply</button>
                 </div>
             </div>
-            <p id="monthRange"></p>
         </div>
     </header>
 
@@ -137,6 +135,12 @@
                     <h3>Raised by supplier</h3>
                     <div class="compare-table-wrap">
                         <table class="datatable" id="compareSupplierTable"></table>
+                    </div>
+                </div>
+                <div class="panel compare-block compare-operator">
+                    <h3>Operator performance</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareOperatorTable"></table>
                     </div>
                 </div>
             </div>
@@ -231,13 +235,13 @@
 
             <div class="demo-pies">
                 <div class="panel">
-                    <h3>Fund Raise by State</h3>
+                    <h3>Fundraise By State</h3>
                     <div class="chart-wrap" style="height:220px;">
                         <canvas id="stateChart" role="img" aria-label="Pie chart of donors by state"></canvas>
                     </div>
                 </div>
                 <div class="panel">
-                    <h3>Engagement reach</h3>
+                    <h3>Data Extracting</h3>
                     <div id="engagement">
                         <div style="margin-bottom:14px;">
                             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
@@ -272,58 +276,6 @@
 
 
         </div>
-        
-        <div id="clientView" style="display:none;">
-            <div id="clientMessage" class="empty" style="display:none;">Select a client.</div>
-            <div class="detail-header">
-                <div>
-                    <h2 id="clientName"></h2>
-                    <p class="agency-line">
-                        Supplier:
-                        <select id="clientAgency" multiple></select>
-                    </p>
-                </div>
-                <div id="clientLoading" class="empty" style="display:none;">
-                    <div class="spinner" aria-hidden="true"></div>
-                    <p id="clientLoadingMessage"></p>
-                </div>
-            </div>
-            <div id="clientDetail">
-                <div class="metric-grid">
-                    <div class="metric-card"><p class="k">Total donations</p><p class="v" id="clientDonations"></p></div>
-                    <div class="metric-card"><p class="k">Total raised</p><p class="v" id="clientRaised"></p></div>
-                    <div class="metric-card"><p class="k">Avg gift</p><p class="v" id="clientAvgGift"></p></div>
-                    <div class="metric-card"><p class="k">$50+ donors</p><p class="v" id="clientTier50"></p></div>
-                    <div class="metric-card"><p class="k">$100+ donors</p><p class="v" id="clientTier100"></p></div>
-                    <div class="metric-card"><p class="k">$200+ donors</p><p class="v" id="clientTier200"></p></div>
-                </div>
-
-                <div class="grid2">
-                    <div class="panel">
-                        <h3>Channel breakdown</h3>
-                        <div class="chart-wrap" style="height:220px;">
-                            <canvas id="channelChart" role="img" aria-label="Bar chart of dollars raised by channel"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid2">
-                    <div class="panel">
-                        <h3>Donor value tiers</h3>
-                        <div class="chart-wrap" style="height:200px;">
-                            <canvas id="tierChart" role="img" aria-label="Bar chart of donor counts by gift tier"></canvas>
-                        </div>
-                    </div>
-                    <div class="panel">
-                        <h3>Last 3 months — SO $$ return %</h3>
-                        <div class="chart-wrap" style="height:200px;">
-                            <canvas id="retChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
     </main>
 
     <script src="~/Scripts/jquery-3.7.0.js"></script>
@@ -332,7 +284,6 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         var dashboardUrl = '@Url.Action("Dashboard", "Home")';
         var compareUrl = '@Url.Action("Compare", "Home")';

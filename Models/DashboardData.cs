@@ -257,12 +257,24 @@ namespace ACQFundraisingDashboard.Models
         public List<ComparePeriod> Periods { get; set; }
         public List<CompareBreakdown> ByClient { get; set; }
         public List<CompareBreakdown> BySupplier { get; set; }
+        public List<CompareOperator> ByOperator { get; set; }
 
         public CompareData()
         {
             Periods = new List<ComparePeriod>();
             ByClient = new List<CompareBreakdown>();
             BySupplier = new List<CompareBreakdown>();
+            ByOperator = new List<CompareOperator>();
         }
+    }
+
+    // One operator in one compared month.
+    public class CompareOperator
+    {
+        public string Name { get; set; }
+        public string Supplier { get; set; }
+        public string Label { get; set; }
+        public int Donations { get; set; }
+        public decimal Raised { get; set; }
     }
 }

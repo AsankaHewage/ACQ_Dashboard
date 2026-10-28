@@ -26,7 +26,7 @@ namespace ACQFundraisingDashboard
             DateTime start;
             DateTime end;
 
-            // 0 and 1 are one calendar month. 3 and 6 run through the end of last month.
+            // 0 and 1 are one calendar month. 3, 6, and 12 run through the end of last month.
             if (months <= 1)
             {
                 start = firstOfThisMonth.AddMonths(-Math.Max(months, 0));
@@ -368,6 +368,20 @@ namespace ACQFundraisingDashboard
                         Donations = row.Total_donation_count
                     });
                 }
+
+                foreach (var row in dashboard.Top10Fundraisers)
+                {
+                    var name = string.IsNullOrWhiteSpace(row.FirstName) ? row.Surname : row.FirstName;
+                    if (string.IsNullOrWhiteSpace(name)) name = "Unknown";
+                    data.ByOperator.Add(new CompareOperator
+                    {
+                        Name = name.Trim() + "[" + row.OperatorNo + "]",
+                        Supplier = row.Supplier,
+                        Label = range.Label,
+                        Donations = row.Total_Donation,
+                        Raised = row.Total_Raised
+                    });
+                }
             }
 
             return data;
@@ -388,7 +402,7 @@ namespace ACQFundraisingDashboard
 
             if (type == "ytd")
             {
-                AddCompleteMonths(ranges, 12);
+                AddRecentMonths(ranges, 12);
                 return ranges;
             }
 
@@ -428,15 +442,15 @@ namespace ACQFundraisingDashboard
                 return ranges;
             }
 
-            AddCompleteMonths(ranges, 6);
+            AddRecentMonths(ranges, 6);
             return ranges;
         }
 
-        // One column per finished month, ending with last month. 12 months from October 2026 is October 2025 through September 2026.
-        static void AddCompleteMonths(List<CompareRange> ranges, int count)
+        // One column per month, including the current month. 6 months from October 2026 is May 2026 through October 2026.
+        static void AddRecentMonths(List<CompareRange> ranges, int count)
         {
             var firstOfThisMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-            for (var i = count; i >= 1; i--)
+            for (var i = count - 1; i >= 0; i--)
             {
                 var start = firstOfThisMonth.AddMonths(-i);
                 ranges.Add(new CompareRange

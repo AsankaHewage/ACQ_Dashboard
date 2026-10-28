@@ -1,4 +1,4 @@
-function money(amount) {
+﻿function money(amount) {
     return "$" + Number(amount).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -32,54 +32,16 @@ function monthYearName(value) {
     return names[month - 1] + " " + year;
 }
 
-function monthYearDateLabel(value) {
-    var text = String(value || "").substring(0, 10);
-    var month = parseInt(text.substring(5, 7), 10);
-    var year = parseInt(text.substring(0, 4), 10);
-    var day = parseInt(text.substring(8, 10), 10);
-    var names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return names[month - 1] + " " + day + ", " + year;
-}
-
 var supplier = "ALL";
 var charity = "ALL";
 var campaign = "ALL";
 var month = 0;
 var runSummary = function () {};
-var runClient = function () {};
 var runRaisedChart = function () {};
 
 var is_summary_view = true;
-var is_client_view = false;
 var is_compare_view = false;
 var runCompare = function () {};
-
-//need to dynamic
-var suppliers = [
-    { id: "ALL", text: "All" },
-    { id: "QUINN", text: "QDF" },
-    { id: "BPO", text: "BPO" },
-    { id: "IG", text: "IG" },
-    { id: "DTS", text: "DTS" }
-];
-
-$("#clientAgency").select2({
-    placeholder: "Select Supplier...",
-    allowClear: true,
-    width: "100%",
-    data: suppliers
-});
-
-$("#clientAgency").on("select2:select", function (e) {
-    var selected = $(this).val() || [];
-    var next = e.params.data.id === "ALL"
-        ? ["ALL"]
-        : selected.filter(function (id) { return id !== "ALL"; });
-
-    if (next.join(",") !== selected.join(",")) {
-        $(this).val(next).trigger("change");
-    }
-});
 
 $("#raisedToggle").on("change", function () {
     var campaign = this.checked;
@@ -101,7 +63,6 @@ $(function () {
     $("#applyFilters").on("click", function () {
         month = parseInt($("#periodFilter").val(), 10) || 0;
         if (is_summary_view) runSummary();
-        else if (is_client_view) runClient();
         else if (is_compare_view) runCompare();
     });
 })
@@ -284,7 +245,6 @@ $(function () {
 
         $('#summaryLoading').show();
         $('#summaryView').hide();
-        $('#monthRange').text('');
         $('#summaryLoadingMessage').html("Fetching data for<br><strong>Supplier:</strong> " + supplier + "<br><strong>Charities:</strong> " + charity + "<br><strong>Campaigns:</strong> " + campaign);
 
             summaryTimer = setTimeout(function () {
@@ -298,9 +258,6 @@ $(function () {
                 })
                 .done(function (data) {
                     if (!is_summary_view) return;
-
-                    var range = data.datePicker[0];
-                    $('#monthRange').text(monthYearDateLabel(range.start_date) + " - " + monthYearDateLabel(range.end_date))
 
                     dashboard = data;
                     allSuppliers = data.raisedBySupplier || [];
@@ -690,32 +647,27 @@ $(function () {
     }
 
     $(".viewtab").on("click", function () {
-        if ($(this).data("view") !== "summary") return;
+        var view = $(this).data("view");
         $(".viewtab").removeClass("active");
         $(this).addClass("active");
+
+        if (view === "compare") {
+            $("#summaryView, #summaryLoading").hide();
+            $("#compareView").show();
+            $(".criteria").addClass("is-compare");
+            is_summary_view = false;
+            is_compare_view = true;
+            loadCompare();
+            return;
+        }
+
         $("#summaryView").show();
-        $("#clientView, #clientLoading, #compareView").hide();
+        $("#compareView").hide();
         $(".criteria").removeClass("is-compare");
-
         is_summary_view = true;
-        is_client_view = false;
         is_compare_view = false;
-
         selectAllSummary();
         loadSummary();
-    });
-
-    $("#compareViewBtn").on("click", function () {
-        $(".viewtab").removeClass("active");
-        $(this).addClass("active");
-        $("#summaryView, #summaryLoading, #clientView, #clientLoading").hide();
-        $("#compareView").show();
-        $(".criteria").addClass("is-compare");
-
-        is_summary_view = false;
-        is_client_view = false;
-        is_compare_view = true;
-        loadCompare();
     });
 
     $(".compare-type").on("click", function () {
@@ -726,6 +678,7 @@ $(function () {
 
     var compareChart = null;
     var compareRateChart = null;
+    var compareOperatorTable = null;
     var compareRequest = 0;
 
     function loadCompare() {
@@ -737,14 +690,12 @@ $(function () {
         if (compareType === "custom" && (!from || !to || to < from)) {
             $("#compareLoading, #compareDetail").hide();
             $("#compareEmpty").text("Choose a from month and a to month, then Apply.").show();
-            $("#monthRange").text("");
             return;
         }
 
         $("#compareEmpty, #compareDetail").hide();
         $("#compareLoading").show();
         $("#compareLoadingMessage").text("Comparing periods…");
-        $("#monthRange").text("");
 
         $.ajax({
             url: compareUrl,
@@ -764,9 +715,6 @@ $(function () {
             $("#compareEmpty").hide();
             renderCompare(data);
             $("#compareDetail").show();
-            var first = data.periods[0];
-            var last = data.periods[data.periods.length - 1];
-            $("#monthRange").text(monthYearDateLabel(first.start) + " - " + monthYearDateLabel(last.end));
         })
         .fail(function () {
             if (request !== compareRequest || !is_compare_view) return;
@@ -794,6 +742,7 @@ $(function () {
 
         drawCompareChart(periods);
         drawCompareRateChart(periods);
+        fillCompareOperatorTable(data.byOperator || [], periods);
         fillCompareTable("#compareClientTable", "Client", data.byClient || [], periods);
         fillCompareTable("#compareSupplierTable", "Supplier", data.bySupplier || [], periods);
     }
@@ -940,6 +889,70 @@ $(function () {
         });
     }
 
+    function fillCompareOperatorTable(operators, periods) {
+        if (compareOperatorTable) {
+            compareOperatorTable.destroy();
+            compareOperatorTable = null;
+        }
+
+        var grouped = {};
+        var names = [];
+        (operators || []).forEach(function (row) {
+            var key = String(row.name || "").trim() || "Unknown";
+            if (!grouped[key]) {
+                grouped[key] = { supplier: row.supplier || "", months: {} };
+                names.push(key);
+            }
+            if (row.supplier) grouped[key].supplier = row.supplier;
+            grouped[key].months[row.label] = row;
+        });
+
+        var lastLabel = periods[periods.length - 1].label;
+        var prevLabel = periods.length > 1 ? periods[periods.length - 2].label : null;
+        names.sort(function (a, b) {
+            var av = grouped[a].months[lastLabel] ? Number(grouped[a].months[lastLabel].raised) : 0;
+            var bv = grouped[b].months[lastLabel] ? Number(grouped[b].months[lastLabel].raised) : 0;
+            return bv - av;
+        });
+
+        var head = "<tr><th>Operator</th><th>Supplier</th>";
+        periods.forEach(function (period) {
+            head += "<th class='num'>" + period.label + "</th>";
+        });
+        head += "<th class='num'>Change</th></tr>";
+
+        var body = "";
+        names.forEach(function (name) {
+            var info = grouped[name];
+            var supplier = info.supplier || "";
+            var supplierName = supplier === "QUINN" ? "QDF" : (supplier || "Unknown");
+            var badge = supplier || "Unknown";
+            body += "<tr><td>" + name + "</td>"
+                + "<td><span class='agency-badge badge-" + badge + "'>" + supplierName + "</span></td>";
+            periods.forEach(function (period) {
+                var amount = info.months[period.label] ? Number(info.months[period.label].raised) : 0;
+                body += "<td class='num' data-order='" + amount + "'>" + money(amount) + "</td>";
+            });
+            var current = info.months[lastLabel] ? Number(info.months[lastLabel].raised) : 0;
+            var previous = prevLabel && info.months[prevLabel] ? Number(info.months[prevLabel].raised) : 0;
+            var diff = prevLabel ? current - previous : 0;
+            var changeClass = diff > 0 ? "pos" : diff < 0 ? "neg" : "";
+            body += "<td class='num " + changeClass + "' data-order='" + diff + "'>" + (prevLabel ? signedMoney(current, previous) : "") + "</td></tr>";
+        });
+
+        $("#compareOperatorTable").html("<thead>" + head + "</thead><tbody>" + body + "</tbody>");
+        compareOperatorTable = $("#compareOperatorTable").DataTable({
+            paging: true,
+            pageLength: 10,
+            lengthMenu: [[10, 20, 50, -1], [10, 20, 50, "All"]],
+            searching: true,
+            info: false,
+            order: [[1 + periods.length, "desc"]],
+            autoWidth: false,
+            dom: "lfrtp"
+        });
+    }
+
     function fillCompareTable(selector, nameHeading, rows, periods) {
         var grouped = {};
         var names = [];
@@ -999,207 +1012,3 @@ $(function () {
     runSummary = loadSummary;
     runRaisedChart = chartRaisedByCharity;
 });
-
-
-
-// CLIENT VIEW. Set charity, then the Client view tab calls loadClientView.
-$(function () {
-    var clientDashboard = null;
-    var channelChart = null;
-    var tierChart = null;
-    var retChart = null;
-    var clientTimer = null;
-    var clientRequest = 0;
-
-    function loadClientView() {
-        if (!charity) return;
-
-        var request = ++clientRequest;
-        clearTimeout(clientTimer);
-
-        $("#clientView").show();
-        $("#clientDetail").hide();
-        $('#monthRange').text('');
-        $("#clientLoading").show();
-        $("#clientLoadingMessage").html("Fetching data for<br><strong>Supplier:</strong> " + supplier + "<br><strong>Charities:</strong> " + charity + "<br><strong>Campaigns:</strong> " + campaign);
-
-        clientTimer = setTimeout(function () {
-            if (request !== clientRequest || !is_client_view) return;
-
-            $.ajax({
-                url: dashboardUrl,
-                type: "GET",
-                dataType: "json",
-                data: { supplier: supplier, charity: charity, campaign: campaign, month: month }
-            })
-            .done(function (data) {
-                    if (!is_client_view) return;
-
-                    var range = data.datePicker[0];
-                    $('#monthRange').text(range.start_date.substring(0, 10) + " - " + range.end_date.substring(0, 10))
-
-                    clientDashboard = data;
-
-                    $('#clientDonations').text(clientDashboard.summary[0].total_donation_count);
-                    $('#clientRaised').text(money(clientDashboard.summary[0].total_donation_amount));
-                    $('#clientAvgGift').text(money(clientDashboard.summary[0].avg_gift));
-                    $('#clientTier50').text(clientDashboard.summary[0].tier50);
-                    $('#clientTier100').text(clientDashboard.summary[0].tier100);
-                    $('#clientTier200').text(clientDashboard.summary[0].tier200);
-
-                    fillEngagement(clientDashboard.summary[0]);
-
-                    chartChannels();
-                    chartTiers();
-                    chartReturn();
-
-                    $("#clientLoading").hide();
-                    $("#clientView, #clientDetail").show();
-                });
-        }, 1000);
-    }
-
-    function clientSummary() {
-        return clientDashboard && clientDashboard.summary[0];
-    }
-
-    function chartChannels() {
-        var summary = clientSummary();
-        if (!summary || !$("#channelChart").length) return;
-
-        if (channelChart) channelChart.destroy();
-        channelChart = new Chart($("#channelChart")[0], {
-            type: "bar",
-            data: {
-                labels: ["Card/DD", "Sent out", "Web"],
-                datasets: [{
-                    data: [summary.cc_dd_total, summary.so_total, summary.ho_total],
-                    backgroundColor: ["#6fa8dc", "#2c8a9e", "#9a9a93"],
-                    borderRadius: 4,
-                    maxBarThickness: 40
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-
-                                var cont = context.parsed.y.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                });
-
-                                var counts = [
-                                    summary.cc_dd_donations,
-                                    summary.so_donations,
-                                    summary.ho_donations
-                                ];
-
-                                return [
-                                    "Raised: $" + cont,
-                                    "Donations: " + counts[context.dataIndex]
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: "#2c2c2a" }, ticks: { color: "#9a9a93" } },
-                    x: { grid: { display: false }, ticks: { color: "#9a9a93" } }
-                }
-            }
-        });
-    }
-
-    function chartTiers() {
-        var summary = clientSummary();
-        if (!summary || !$("#tierChart").length) return;
-
-        if (tierChart) tierChart.destroy();
-        tierChart = new Chart($("#tierChart")[0], {
-            type: "bar",
-            data: {
-                labels: ["$50+", "$100+", "$200+"],
-                datasets: [{
-                    data: [summary.tier50, summary.tier100, summary.tier200],
-                    backgroundColor: "#6fa8dc",
-                    borderRadius: 4,
-                    maxBarThickness: 40
-                }]
-            },
-            options: {
-                indexAxis: "y",
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { beginAtZero: true, grid: { color: "#2c2c2a" }, ticks: { color: "#9a9a93" } },
-                    y: { grid: { display: false }, ticks: { color: "#9a9a93" } }
-                }
-            }
-        });
-    }
-
-    function chartReturn() {
-        var summary = clientSummary();
-        if (!summary || !$("#retChart").length) return;
-
-        if (retChart) retChart.destroy();
-        retChart = new Chart($("#retChart")[0], {
-            type: "line",
-            data: {
-                labels: ["3 months ago", "2 months ago", "Last month"],
-                datasets: [{
-                    data: [summary.l3p_L3r_perc, summary.l2p_L2r_perc, summary.l1p_L1r_perc],
-                    borderColor: "#2e9e52",
-                    backgroundColor: "rgba(46,158,82,0.12)",
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 4,
-                    pointBackgroundColor: "#2e9e52"
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { grid: { color: "#2c2c2a" }, ticks: { color: "#9a9a93", callback: function (value) { return value + "%"; } } },
-                    x: { grid: { display: false }, ticks: { color: "#9a9a93" } }
-                }
-            }
-        });
-    }
-
-    // $(".viewtab").on("click", function () {
-    //     if ($(this).data("view") !== "client") return;
-    //     $(".viewtab").removeClass("active");
-    //     $(this).addClass("active");
-    //     $("#clientView").show();
-    //     $("#clientDetail, #summaryView, #summaryLoading").hide();
-
-    //     is_client_view = true;
-    //     is_summary_view = false;
-
-    //     $("#clientFilter, #supplierFilter, #campaignFilter").val(["ALL"]).trigger("multi:sync");
-    //     $("#clientAgency").val(["ALL"]).trigger("change.select2");
-    //     supplier = "ALL";
-    //     charity = "ALL";
-    //     campaign = "ALL";
-
-    //     loadClientView();
-    // });
-
-    $('#clientAgency').on("change", function () {
-        supplier = ($(this).val() || ["ALL"]).join(",");
-        loadClientView();
-    });
-
-    runClient = loadClientView;
-});
-
-
