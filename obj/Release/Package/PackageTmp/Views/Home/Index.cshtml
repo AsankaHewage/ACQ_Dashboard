@@ -7,20 +7,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>ACQ Fundraising Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="icon" href="~/favicon.ico?v=dts" type="image/x-icon" />
     <link href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" rel="stylesheet" />
     <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet" />
-    <link href="~/Content/acq-dashboard.css" rel="stylesheet" />
+    <link href="~/Content/acq-dashboard.css?v=hiderange" rel="stylesheet" />
 </head>
-<body>
+<body class="is-daily">
     <header>
         <h1>ACQ Fundraising Dashboard</h1>
-        <div class="criteria">
+        <div class="criteria is-daily">
             <p class="criteria-label">View</p>
-            <div class="viewtabs">
-                <button type="button" class="viewtab active" data-view="summary">Summary</button>
-                <button type="button" class="viewtab" data-view="client">Client performance</button>
-                <button type="button" class="viewtab" data-view="supplier">Supplier performance</button>
+            <div class="view-row">
+                <div class="viewtabs">
+                    <button type="button" class="viewtab active" data-view="daily">Daily Activity</button>
+                    <button type="button" class="viewtab" data-view="summary">Monthly Summary</button>
+                    <button type="button" class="viewtab" id="compareViewBtn" data-view="compare">Compare Performance</button>
+                </div>
             </div>
 
             <p class="criteria-label">Filters</p>
@@ -43,20 +45,36 @@
                         <option value="ALL">All suppliers</option>
                     </select>
                 </label>
-                <label class="filter-field">
+                <label class="filter-field" id="periodField">
                     <span>Period</span>
                     <select id="periodFilter">
                         <option value="0" selected>Current month</option>
                         <option value="1">Last month</option>
                         <option value="3">Last 3 months</option>
                         <option value="6">Last 6 months</option>
+                        <option value="12">Last 12 months</option>
                     </select>
+                </label>
+                <label class="filter-field" id="compareTypeField">
+                    <span>Compare type</span>
+                    <div class="compare-types" role="group" aria-label="Compare type">
+                        <button type="button" class="compare-type active" data-compare="month">Last 6 months</button>
+                        <button type="button" class="compare-type" data-compare="ytd">Last 12 months</button>
+                        <button type="button" class="compare-type" data-compare="custom">Custom range</button>
+                    </div>
+                </label>
+                <label class="filter-field" id="compareFromField">
+                    <span>From</span>
+                    <input type="month" id="compareFrom" />
+                </label>
+                <label class="filter-field" id="compareToField">
+                    <span>To</span>
+                    <input type="month" id="compareTo" />
                 </label>
                 <div class="filter-apply">
                     <button type="button" id="applyFilters" class="btn">Apply</button>
                 </div>
             </div>
-            <p id="monthRange"></p>
         </div>
     </header>
 
@@ -80,7 +98,141 @@
             <p id="summaryLoadingMessage"></p>
         </div>
 
-        <div id="summaryView">
+        <div id="dailyView">
+            <div class="daily-range-bar">
+                <h3 id="dailySummaryTitle">Current Month ACQ Summary</h3>
+                <div class="daily-range">
+                    <button type="button" class="daily-range-btn active" data-range="month">Month to today</button>
+                    <button type="button" class="daily-range-btn" data-range="30">To last month</button>
+                </div>
+            </div>
+            <div id="dailyLoading" class="empty" style="display:none;">
+                <div class="spinner" aria-hidden="true"></div>
+                <p id="dailyLoadingMessage"></p>
+            </div>
+            <p id="dailyEmpty" class="empty" style="display:none;">No donations for this selection.</p>
+            <div id="dailyDetail" class="panel" style="display:none;">
+                <div class="compare-table-wrap">
+                    <table class="daily-table" id="dailyTable">
+                        <thead>
+                            <tr>
+                                <th>Charity</th>
+                                <th>Tot.Donation</th>
+                                <th>Tot.Raised</th>
+                                <th>CC-DD-#</th>
+                                <th>CC-DD-$</th>
+                                <th>SO-#</th>
+                                <th>SO-$</th>
+                                <th>Web-#</th>
+                                <th>Web-$</th>
+                                <th class="today" title="Pledges dated today">Today-#</th>
+                                <th class="today" title="Pledges dated today">Today-$</th>
+                                <th>Mobile</th>
+                                <th>Email</th>
+                                <th>DOB</th>
+                                <th>$50+</th>
+                                <th>$100+</th>
+                                <th>$200+</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="dailyRevenue" class="panel" style="display:none;">
+                <div class="panel-head">
+                    <h3 id="dailyRevenueTitle">ACQ Revenue Last 30 days</h3>
+                    <div class="daily-range" id="dailyRevenueView">
+                        <button type="button" class="daily-range-btn active" data-revenue-view="chart">Chart</button>
+                        <button type="button" class="daily-range-btn" data-revenue-view="table">Table</button>
+                    </div>
+                </div>
+                <div class="chart-wrap" style="height:280px;">
+                    <canvas id="dailyRevenueChart" role="img" aria-label="Total donations and amount raised from today back through the same day last month"></canvas>
+                </div>
+                <div class="compare-table-wrap">
+                    <table class="datatable" id="dailyRevenueDays"></table>
+                </div>
+            </div>
+            <div id="dailyDrill" style="display:none;">
+                <div id="dailyDrillLoading" class="empty" style="display:none;">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p id="dailyDrillMessage"></p>
+                </div>
+                <div id="dailyDrillDetail" style="display:none;">
+                    <p class="daily-note">Donations, then amount raised, from today back through the same day last month.</p>
+                    <div class="panel">
+                        <h3 id="dailyCharityTitle">Fund Raised by Charity Last 30 days</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="dailyCharityChart" role="img" aria-label="Amount raised from today back through the same day last month"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3 id="dailyCampaignTitle">Campaign Performance Last 30 days</h3>
+                        <div class="compare-table-wrap">
+                            <table class="datatable" id="dailyCampaignDays"></table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3 id="dailyFundraiserTitle">Fundraiser Performance Last 30 days</h3>
+                        <div class="compare-table-wrap">
+                            <table class="datatable" id="dailyFundraiserDays"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="compareView" style="display:none;">
+            <div id="compareLoading" class="empty" style="display:none;">
+                <div class="spinner" aria-hidden="true"></div>
+                <p id="compareLoadingMessage"></p>
+            </div>
+            <p id="compareEmpty" class="empty">Comparison results will appear here.</p>
+            <div id="compareDetail" style="display:none;">
+                <div class="kpis">
+                    <div class="kpi"><p class="label">Total raised</p><p class="value" id="cmpRaised"></p><p class="delta" id="cmpRaisedDelta"></p></div>
+                    <div class="kpi"><p class="label">Total donations</p><p class="value" id="cmpDonations"></p><p class="delta" id="cmpDonationsDelta"></p></div>
+                    <div class="kpi"><p class="label">Avg. gift</p><p class="value" id="cmpAvgGift"></p><p class="delta" id="cmpAvgGiftDelta"></p></div>
+                    <div class="kpi"><p class="label">Declined rate</p><p class="value" id="cmpDeclined"></p><p class="delta" id="cmpDeclinedDelta"></p></div>
+                    <div class="kpi"><p class="label">SO return %</p><p class="value" id="cmpSoReturn"></p><p class="delta" id="cmpSoReturnDelta"></p></div>
+                </div>
+                <div class="compare-charts">
+                    <div class="panel">
+                        <h3>Raised and donations</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="compareChart" role="img" aria-label="Raised and donations across the compared periods"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>Avg. gift and SO return %</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="compareRateChart" role="img" aria-label="Average gift and standing order return percent across the compared periods"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel compare-block">
+                    <h3>Raised by client</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareClientTable"></table>
+                    </div>
+                </div>
+                <div class="panel compare-block">
+                    <h3>Raised by supplier</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareSupplierTable"></table>
+                    </div>
+                </div>
+                <div class="panel compare-block compare-operator">
+                    <h3>Operator performance</h3>
+                    <div class="compare-table-wrap">
+                        <table class="datatable" id="compareOperatorTable"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="summaryView" style="display:none;">
             <div class="kpis">
                 <div class="kpi"><p class="label">Total raised</p><p class="value" id="kpiRaised"></p></div>
                 <div class="kpi"><p class="label">Total donations</p><p class="value" id="kpiDonations"></p></div>
@@ -94,7 +246,7 @@
                         <div><span class="tier-k">$200+</span><span class="tier-v" id="kpiTier200"></span></div>
                     </div>
                 </div>
-                <div class="kpi"><p class="label">Avg. Declined rate</p><p class="value" id="kpiReturn"></p></div>
+                <div class="kpi"><p class="label">Avg. declined rate</p><p class="value" id="kpiDeclinedRate"></p></div>
             </div>
 
             <div class="grid2">
@@ -124,7 +276,7 @@
             </div>
 
             <div class="panel" style="margin-bottom:20px;">
-                <h3>SO Return % across shown charities — Last 6 months</h3>
+                <h3>$SO Return % across shown charities — Last 6 months</h3>
                 <div class="chart-wrap" style="height:180px;">
                     <canvas id="trendChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas>
                 </div>
@@ -155,10 +307,12 @@
                         <tr>
                             <th>FR</th>
                             <th>Supplier</th>
+                            <th>Donations</th>
                             <th class="num">Raised</th>
                             <th class="num">CC/DD</th>
                             <th class="num">SO</th>
-                            <th class="num">WEB (HO)</th>
+                            <th class="num">Decline Rate</th>
+                            <th class="num">#SO Return Rate</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -167,103 +321,45 @@
 
             <div class="demo-pies">
                 <div class="panel">
-                    <h3>State</h3>
+                    <h3>Fundraise By State</h3>
                     <div class="chart-wrap" style="height:220px;">
                         <canvas id="stateChart" role="img" aria-label="Pie chart of donors by state"></canvas>
                     </div>
                 </div>
                 <div class="panel">
-                    <h3>Gender</h3>
-                    <div class="chart-wrap" style="height:220px;">
-                        <canvas id="genderChart" role="img" aria-label="Pie chart of donors by gender"></canvas>
-                    </div>
-                </div>
-            </div>
-
-
-        </div>
-        
-        <div id="clientView" style="display:none;">
-            <div id="clientMessage" class="empty" style="display:none;">Select a client.</div>
-            <div class="detail-header">
-                <div>
-                    <h2 id="clientName"></h2>
-                    <p class="agency-line">
-                        Supplier:
-                        <select id="clientAgency" multiple></select>
-                    </p>
-                </div>
-                <div id="clientLoading" class="empty" style="display:none;">
-                    <div class="spinner" aria-hidden="true"></div>
-                    <p id="clientLoadingMessage"></p>
-                </div>
-            </div>
-            <div id="clientDetail">
-                <div class="metric-grid">
-                    <div class="metric-card"><p class="k">Total donations</p><p class="v" id="clientDonations"></p></div>
-                    <div class="metric-card"><p class="k">Total raised</p><p class="v" id="clientRaised"></p></div>
-                    <div class="metric-card"><p class="k">Avg gift</p><p class="v" id="clientAvgGift"></p></div>
-                    <div class="metric-card"><p class="k">$50+ donors</p><p class="v" id="clientTier50"></p></div>
-                    <div class="metric-card"><p class="k">$100+ donors</p><p class="v" id="clientTier100"></p></div>
-                    <div class="metric-card"><p class="k">$200+ donors</p><p class="v" id="clientTier200"></p></div>
-                </div>
-
-                <div class="grid2">
-                    <div class="panel">
-                        <h3>Channel breakdown</h3>
-                        <div class="chart-wrap" style="height:220px;">
-                            <canvas id="channelChart" role="img" aria-label="Bar chart of dollars raised by channel"></canvas>
+                    <h3>Data Extracting</h3>
+                    <div id="engagement">
+                        <div style="margin-bottom:14px;">
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>Mobile</span>
+                                <span id="mobileReach"></span>
+                            </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="mobileBar" style="width:0;background:#2c8a9e;height:100%;"></div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="panel">
-                        <h3>Engagement reach</h3>
-                        <div id="engagement">
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>Mobile</span>
-                                    <span id="mobileReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="mobileBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
+                        <div style="margin-bottom:14px;">
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>Email</span>
+                                <span id="emailReach"></span>
                             </div>
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>Email</span>
-                                    <span id="emailReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="emailBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="emailBar" style="width:0;background:#2c8a9e;height:100%;"></div>
                             </div>
-                            <div style="margin-bottom:14px;">
-                                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-                                    <span>DOB</span>
-                                    <span id="dobReach"></span>
-                                </div>
-                                <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
-                                    <div id="dobBar" style="width:0;background:#2c8a9e;height:100%;"></div>
-                                </div>
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+                                <span>DOB</span>
+                                <span id="dobReach"></span>
+                            </div>
+                            <div style="background:#2c2c2a;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="dobBar" style="width:0;background:#2c8a9e;height:100%;"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="grid2">
-                    <div class="panel">
-                        <h3>Donor value tiers</h3>
-                        <div class="chart-wrap" style="height:200px;">
-                            <canvas id="tierChart" role="img" aria-label="Bar chart of donor counts by gift tier"></canvas>
-                        </div>
-                    </div>
-                    <div class="panel">
-                        <h3>Last 3 months — SO $$ return %</h3>
-                        <div class="chart-wrap" style="height:200px;">
-                            <canvas id="retChart" role="img" aria-label="Line chart of standing order return percent over the last three months"></canvas>
-                        </div>
-                    </div>
-                </div>
             </div>
+
 
         </div>
     </main>
@@ -274,10 +370,12 @@
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         var dashboardUrl = '@Url.Action("Dashboard", "Home")';
+        var compareUrl = '@Url.Action("Compare", "Home")';
+        var dailyUrl = '@Url.Action("Daily", "Home")';
+        var dailyDetailUrl = '@Url.Action("DailyDetail", "Home")';
     </script>
-    <script src="~/Scripts/acq-dashboard.js"></script>
+    <script src="~/Scripts/acq-dashboard.js?v=grandtotal"></script>
 </body>
 </html>

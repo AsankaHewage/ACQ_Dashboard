@@ -104,8 +104,8 @@ namespace ACQFundraisingDashboard
                             so_donations = ReadInt(reader, "so_donations"),
                             //td_total = ReadDecimal(reader, "td_total"),
                             //td_donations = ReadInt(reader, "td_donations"),
-                            ho_total = ReadDecimal(reader, "ho_total"),
-                            ho_donations = ReadInt(reader, "ho_donations"),
+                            ho_total = ReadDecimal(reader, "ho_total"),//web 
+                            ho_donations = ReadInt(reader, "ho_donations"),//web
                             today_total = ReadDecimal(reader, "today_total"),
                             today_donations = ReadInt(reader, "today_donations"),
                             tier50less = ReadInt(reader, "tier50less"),
@@ -302,9 +302,403 @@ namespace ACQFundraisingDashboard
                             Female_Percent = ReadDecimal(reader, "Female_Percent"),
                         });
                     }
+
+                    // Daily sets, then Charity_Summary_Table and Total_raised_donation_daily. Absent sets are skipped.
+                    while (reader.NextResult())
+                    {
+                        if (HasColumn(reader, "PledgeDate") && HasColumn(reader, "Charity"))
+                        {
+                            while (reader.Read())
+                            {
+                                data.CharityDaily.Add(new CharityDaily
+                                {
+                                    Charity = ReadString(reader, "Charity"),
+                                    PledgeDate = ReadDateTime(reader, "PledgeDate"),
+                                    Total_donation_amount = ReadDecimal(reader, "Total_donation_amount"),
+                                    Total_donation_count = ReadInt(reader, "Total_donation_count")
+                                });
+                            }
+                        }
+                        else if (HasColumn(reader, "PledgeDate") && HasColumn(reader, "ListNo"))
+                        {
+                            while (reader.Read())
+                            {
+                                data.CampaignDaily.Add(new CampaignDaily
+                                {
+                                    ListNo = ReadInt(reader, "ListNo"),
+                                    BankingProductType = ReadString(reader, "BankingProductType"),
+                                    PledgeDate = ReadDateTime(reader, "PledgeDate"),
+                                    Total_donation_amount = ReadDecimal(reader, "Total_donation_amount"),
+                                    Total_donation_count = ReadInt(reader, "Total_donation_count")
+                                });
+                            }
+                        }
+                        else if (HasColumn(reader, "OperatorNo") && HasColumn(reader, "PledgeDate"))
+                        {
+                            while (reader.Read())
+                            {
+                                data.FundraiserDaily.Add(new FundraiserDaily
+                                {
+                                    OperatorNo = ReadInt(reader, "OperatorNo"),
+                                    Supplier = ReadString(reader, "Supplier"),
+                                    Surname = ReadString(reader, "Surname"),
+                                    FirstName = ReadString(reader, "FirstName"),
+                                    PledgeDate = ReadDateTime(reader, "PledgeDate"),
+                                    Total_Raised = ReadDecimal(reader, "Total_Raised"),
+                                    Total_Donation = ReadInt(reader, "Total_Donation")
+                                });
+                            }
+                        }
+                        else if (HasColumn(reader, "Charity") && HasColumn(reader, "Tot_Donation") && !HasColumn(reader, "PledgeDate"))
+                        {
+                            while (reader.Read())
+                            {
+                                var name = ReadString(reader, "Charity").Trim();
+                                if (name.Length == 0) continue;
+                                data.CharitySummary.Add(new DailyCharityRow
+                                {
+                                    Charity = name,
+                                    Donations = ReadInt(reader, "Tot_Donation"),
+                                    Raised = ReadDecimal(reader, "Tot_Raised"),
+                                    CcDdCount = ReadInt(reader, "CC-DD-#"),
+                                    CcDdAmount = ReadDecimal(reader, "CC-DD-$"),
+                                    SoCount = ReadInt(reader, "SO-#"),
+                                    SoAmount = ReadDecimal(reader, "SO-$"),
+                                    WebCount = ReadInt(reader, "Web-#"),
+                                    WebAmount = ReadDecimal(reader, "Web-$"),
+                                    TdCount = ReadInt(reader, "Today-#"),
+                                    TdAmount = ReadDecimal(reader, "Today-$"),
+                                    Mobile = ReadInt(reader, "Mobile"),
+                                    Email = ReadInt(reader, "Email"),
+                                    Dob = ReadInt(reader, "DOB"),
+                                    Tier50 = ReadInt(reader, "50+"),
+                                    Tier100 = ReadInt(reader, "100+"),
+                                    Tier200 = ReadInt(reader, "200+")
+                                });
+                            }
+                        }
+                        else if (HasColumn(reader, "PledgeDate")
+                            && !HasColumn(reader, "Charity")
+                            && !HasColumn(reader, "ListNo")
+                            && !HasColumn(reader, "OperatorNo")
+                            && (HasColumn(reader, "Total_donation_amount") || HasColumn(reader, "Total_Raised")))
+                        {
+                            var amountColumn = HasColumn(reader, "Total_donation_amount") ? "Total_donation_amount" : "Total_Raised";
+                            var countColumn = HasColumn(reader, "Total_donation_count") ? "Total_donation_count"
+                                : HasColumn(reader, "Total_Donation") ? "Total_Donation" : "";
+                            while (reader.Read())
+                            {
+                                data.RevenueDaily.Add(new RevenueDaily
+                                {
+                                    PledgeDate = ReadDateTime(reader, "PledgeDate"),
+                                    Raised = ReadDecimal(reader, amountColumn),
+                                    Donations = countColumn.Length == 0 ? 0 : ReadInt(reader, countColumn)
+                                });
+                            }
+                        }
+                    }
                 }
             }
             return data;
+        }
+
+        // Charity rows follow the daily toggle: this month, or the same day last month, through today.
+        // Revenue days use the combined daily total, including head office, minus charities that are not on the summary.
+        public static DailySummaryResult GetDailySummary(string supplier, string charity, string campaign, string range)
+        {
+            var result = new DailySummaryResult();
+            var end = DateTime.Today;
+            var monthStart = new DateTime(end.Year, end.Month, 1);
+            var chartStart = end.AddMonths(-1);
+            var wide = string.Equals(range, "30", StringComparison.OrdinalIgnoreCase);
+            var summaryStart = wide ? chartStart : monthStart;
+
+            charity = string.IsNullOrWhiteSpace(charity) ? "ALL" : charity;
+            supplier = string.IsNullOrWhiteSpace(supplier) ? "ALL" : supplier;
+            campaign = string.IsNullOrWhiteSpace(campaign) ? "ALL" : campaign;
+
+            DashboardData monthData = null;
+            DashboardData chartData = null;
+            if (summaryStart == chartStart)
+            {
+                monthData = GetDashboard(summaryStart, end, charity, supplier, campaign);
+                chartData = monthData;
+            }
+            else
+            {
+                Parallel.Invoke(
+                    delegate { monthData = GetDashboard(summaryStart, end, charity, supplier, campaign); },
+                    delegate { chartData = GetDashboard(chartStart, end, charity, supplier, campaign); });
+            }
+
+            foreach (var item in monthData.CharitySummary)
+            {
+                ApplyCampaigns(item, monthData);
+                result.Charities.Add(item);
+            }
+
+            if (result.Charities.Count > 0)
+                FillCampaignTotals(result.Charities, summaryStart, end, supplier, campaign);
+            result.Charities.Sort(delegate (DailyCharityRow left, DailyCharityRow right) { return right.Raised.CompareTo(left.Raised); });
+            result.AllCharities = monthData.AllCharities;
+            result.AllSuppliers = monthData.AllSuppliers;
+            result.AllCampaigns = monthData.AllCampaigns;
+            result.Days = BuildRevenueDays(chartStart, end, RevenueForShownCharities(chartData.CharityDaily, chartData.RevenueDaily, result.Charities));
+            return result;
+        }
+
+        // Combined daily totals include head-office web amounts. Remove charities that are not on the summary.
+        static List<RevenueDaily> RevenueForShownCharities(List<CharityDaily> charityRows, List<RevenueDaily> combined, List<DailyCharityRow> shown)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in shown)
+            {
+                var name = (item.Charity ?? "").Trim();
+                if (name.Length > 0) names.Add(name);
+            }
+
+            var byDay = new Dictionary<DateTime, RevenueDaily>();
+            foreach (var row in combined)
+            {
+                var day = row.PledgeDate.Date;
+                RevenueDaily slot;
+                if (!byDay.TryGetValue(day, out slot))
+                {
+                    slot = new RevenueDaily { PledgeDate = day };
+                    byDay[day] = slot;
+                }
+                slot.Raised += row.Raised;
+                slot.Donations += row.Donations;
+            }
+
+            if (byDay.Count == 0)
+            {
+                foreach (var row in charityRows)
+                {
+                    var name = (row.Charity ?? "").Trim();
+                    if (!names.Contains(name)) continue;
+                    var day = row.PledgeDate.Date;
+                    RevenueDaily slot;
+                    if (!byDay.TryGetValue(day, out slot))
+                    {
+                        slot = new RevenueDaily { PledgeDate = day };
+                        byDay[day] = slot;
+                    }
+                    slot.Raised += row.Total_donation_amount;
+                    slot.Donations += row.Total_donation_count;
+                }
+                return new List<RevenueDaily>(byDay.Values);
+            }
+
+            foreach (var row in charityRows)
+            {
+                var name = (row.Charity ?? "").Trim();
+                if (names.Contains(name)) continue;
+                var day = row.PledgeDate.Date;
+                RevenueDaily slot;
+                if (!byDay.TryGetValue(day, out slot))
+                {
+                    slot = new RevenueDaily { PledgeDate = day };
+                    byDay[day] = slot;
+                }
+                slot.Raised -= row.Total_donation_amount;
+                slot.Donations -= row.Total_donation_count;
+            }
+            return new List<RevenueDaily>(byDay.Values);
+        }
+
+        // One slot per day, today first. Procedure rows fill the matching day; missing days stay at zero.
+        static List<DailyDayAmount> BuildRevenueDays(DateTime start, DateTime end, List<RevenueDaily> source)
+        {
+            var days = new List<DailyDayAmount>();
+            var index = new Dictionary<string, int>(StringComparer.Ordinal);
+            var dayCount = (end.Date - start.Date).Days + 1;
+            for (var i = 0; i < dayCount; i++)
+            {
+                var key = end.AddDays(-i).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                index[key] = i;
+                days.Add(new DailyDayAmount { Day = key });
+            }
+
+            foreach (var row in source)
+            {
+                int slot;
+                var key = row.PledgeDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (!index.TryGetValue(key, out slot)) continue;
+                days[slot].Donations += row.Donations;
+                days[slot].Raised += row.Raised;
+            }
+            return days;
+        }
+
+        // Channel columns exist only on the procedure summary, so each campaign is its own call.
+        // A charity call that was already limited to that one campaign is reused.
+        static void FillCampaignTotals(List<DailyCharityRow> rows, DateTime start, DateTime end, string supplier, string campaign)
+        {
+            var filteredList = 0;
+            var filteredToOne = campaign.IndexOf(',') < 0
+                && int.TryParse(campaign, NumberStyles.Integer, CultureInfo.InvariantCulture, out filteredList);
+            var jobs = new List<CampaignTotalJob>();
+
+            foreach (var row in rows)
+            {
+                foreach (var item in row.Campaigns)
+                {
+                    var onlyCampaign = row.Campaigns.Count == 1 && (campaign == "ALL" || (filteredToOne && item.ListNo == filteredList));
+                    var matchesFilter = filteredToOne && item.ListNo == filteredList;
+                    if (onlyCampaign || matchesFilter)
+                    {
+                        CopyCampaignTotals(row, item);
+                        continue;
+                    }
+                    jobs.Add(new CampaignTotalJob { Charity = row.Charity, Campaign = item });
+                }
+            }
+
+            Parallel.For(0, jobs.Count, i =>
+            {
+                var job = jobs[i];
+                var data = GetDashboard(start, end, job.Charity, supplier, job.Campaign.ListNo.ToString(CultureInfo.InvariantCulture));
+                ApplyCampaignTotals(job.Campaign, data);
+            });
+        }
+
+        class CampaignTotalJob
+        {
+            public string Charity;
+            public DailyCharityCampaign Campaign;
+        }
+
+        // Same day last month through today for one charity, from the procedure's daily charity, campaign, and fundraiser results.
+        public static DailyCharityDetail GetDailyDetail(string supplier, string charity, string campaign)
+        {
+            var detail = new DailyCharityDetail();
+            charity = (charity ?? "").Trim();
+            if (charity.Length == 0 || charity.Equals("ALL", StringComparison.OrdinalIgnoreCase)) return detail;
+
+            detail.Charity = charity;
+            supplier = string.IsNullOrWhiteSpace(supplier) ? "ALL" : supplier;
+            campaign = string.IsNullOrWhiteSpace(campaign) ? "ALL" : campaign;
+            var end = DateTime.Today;
+            var start = end.AddMonths(-1);
+            var data = GetDashboard(start, end, charity, supplier, campaign);
+            var days = new Dictionary<string, int>(StringComparer.Ordinal);
+            var dayCount = (end.Date - start.Date).Days + 1;
+
+            for (var i = 0; i < dayCount; i++)
+            {
+                var key = end.AddDays(-i).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                days[key] = i;
+                detail.Days.Add(new DailyDayAmount { Day = key });
+            }
+
+            foreach (var row in data.CharityDaily)
+            {
+                if (!string.Equals(row.Charity, charity, StringComparison.OrdinalIgnoreCase)) continue;
+                int index;
+                var key = row.PledgeDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (!days.TryGetValue(key, out index)) continue;
+                detail.Days[index].Donations += row.Total_donation_count;
+                detail.Days[index].Raised += row.Total_donation_amount;
+            }
+
+            foreach (var row in data.CampaignDaily)
+            {
+                var key = row.PledgeDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (!days.ContainsKey(key)) continue;
+                var product = (row.BankingProductType ?? "").Trim();
+                detail.Campaigns.Add(new DailyDayBreakdown
+                {
+                    Name = product.Length == 0 ? "List " + row.ListNo : product + " (" + row.ListNo + ")",
+                    Day = key,
+                    Donations = row.Total_donation_count,
+                    Raised = row.Total_donation_amount
+                });
+            }
+
+            foreach (var row in data.FundraiserDaily)
+            {
+                var key = row.PledgeDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (!days.ContainsKey(key)) continue;
+                var first = (row.FirstName ?? "").Trim();
+                var surname = (row.Surname ?? "").Trim();
+                var who = first.Length > 0 ? first : surname;
+                if (who.Length == 0) who = "Unknown";
+                var name = row.OperatorNo == 0 ? who : who + "[" + row.OperatorNo + "]";
+                detail.Fundraisers.Add(new DailyDayBreakdown
+                {
+                    Name = name,
+                    Supplier = row.Supplier ?? "",
+                    Day = key,
+                    Donations = row.Total_Donation,
+                    Raised = row.Total_Raised
+                });
+            }
+
+            return detail;
+        }
+
+        static void ApplyCampaigns(DailyCharityRow row, DashboardData data)
+        {
+            var seen = new HashSet<int>();
+            foreach (var item in data.RaisedByCharityList)
+            {
+                if (!string.Equals(item.Charity, row.Charity, StringComparison.OrdinalIgnoreCase)) continue;
+                var name = (item.BankingProductType ?? "").Trim();
+                if (name.Length == 0 && item.ListNo == 0) continue;
+                if (!seen.Add(item.ListNo)) continue;
+                row.Campaigns.Add(new DailyCharityCampaign
+                {
+                    Name = name,
+                    ListNo = item.ListNo
+                });
+            }
+            row.Campaigns.Sort(delegate (DailyCharityCampaign left, DailyCharityCampaign right)
+            {
+                return left.ListNo.CompareTo(right.ListNo);
+            });
+        }
+
+        static void CopyCampaignTotals(DailyCharityRow row, DailyCharityCampaign campaign)
+        {
+            campaign.Donations = row.Donations;
+            campaign.Raised = row.Raised;
+            campaign.CcDdCount = row.CcDdCount;
+            campaign.CcDdAmount = row.CcDdAmount;
+            campaign.SoCount = row.SoCount;
+            campaign.SoAmount = row.SoAmount;
+            campaign.WebCount = row.WebCount;
+            campaign.WebAmount = row.WebAmount;
+            campaign.TdCount = row.TdCount;
+            campaign.TdAmount = row.TdAmount;
+            campaign.Tier50 = row.Tier50;
+            campaign.Tier100 = row.Tier100;
+            campaign.Tier200 = row.Tier200;
+            campaign.Mobile = row.Mobile;
+            campaign.Email = row.Email;
+            campaign.Dob = row.Dob;
+        }
+
+        static void ApplyCampaignTotals(DailyCharityCampaign campaign, DashboardData data)
+        {
+            if (data.Summary.Count == 0) return;
+            var summary = data.Summary[0];
+            campaign.Donations = summary.Total_donation_count;
+            campaign.Raised = summary.Total_donation_amount;
+            campaign.CcDdCount = summary.cc_dd_donations;
+            campaign.CcDdAmount = summary.cc_dd_total;
+            campaign.SoCount = summary.so_donations;
+            campaign.SoAmount = summary.so_total;
+            campaign.WebCount = summary.ho_donations;
+            campaign.WebAmount = summary.ho_total;
+            campaign.TdCount = summary.today_donations;
+            campaign.TdAmount = summary.today_total;
+            campaign.Tier50 = summary.tier50;
+            campaign.Tier100 = summary.tier100;
+            campaign.Tier200 = summary.tier200;
+            campaign.Mobile = summary.mobile;
+            campaign.Email = summary.email;
+            campaign.Dob = summary.dob;
         }
 
         // Builds the compare periods and reads each one through the existing dashboard procedure.
@@ -460,6 +854,16 @@ namespace ACQFundraisingDashboard
                     End = start.AddMonths(1).AddDays(-1)
                 });
             }
+        }
+
+        static bool HasColumn(SqlDataReader reader, string column)
+        {
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                if (string.Equals(reader.GetName(i), column, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         // Null text from SQL becomes an empty string.

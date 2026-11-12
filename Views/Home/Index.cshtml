@@ -10,17 +10,18 @@
     <link rel="icon" href="~/favicon.ico?v=dts" type="image/x-icon" />
     <link href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" rel="stylesheet" />
     <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css" rel="stylesheet" />
-    <link href="~/Content/acq-dashboard.css" rel="stylesheet" />
+    <link href="~/Content/acq-dashboard.css?v=hiderange" rel="stylesheet" />
 </head>
-<body>
+<body class="is-daily">
     <header>
         <h1>ACQ Fundraising Dashboard</h1>
-        <div class="criteria">
+        <div class="criteria is-daily">
             <p class="criteria-label">View</p>
             <div class="view-row">
                 <div class="viewtabs">
-                    <button type="button" class="viewtab active" data-view="summary">Summary</button>
-                    <button type="button" class="viewtab" id="compareViewBtn" data-view="compare">Compare</button>
+                    <button type="button" class="viewtab active" data-view="daily">Daily Activity</button>
+                    <button type="button" class="viewtab" data-view="summary">Monthly Summary</button>
+                    <button type="button" class="viewtab" id="compareViewBtn" data-view="compare">Compare Performance</button>
                 </div>
             </div>
 
@@ -97,6 +98,91 @@
             <p id="summaryLoadingMessage"></p>
         </div>
 
+        <div id="dailyView">
+            <div class="daily-range-bar">
+                <h3 id="dailySummaryTitle">Current Month ACQ Summary</h3>
+                <div class="daily-range">
+                    <button type="button" class="daily-range-btn active" data-range="month">Month to today</button>
+                    <button type="button" class="daily-range-btn" data-range="30">To last month</button>
+                </div>
+            </div>
+            <div id="dailyLoading" class="empty" style="display:none;">
+                <div class="spinner" aria-hidden="true"></div>
+                <p id="dailyLoadingMessage"></p>
+            </div>
+            <p id="dailyEmpty" class="empty" style="display:none;">No donations for this selection.</p>
+            <div id="dailyDetail" class="panel" style="display:none;">
+                <div class="compare-table-wrap">
+                    <table class="daily-table" id="dailyTable">
+                        <thead>
+                            <tr>
+                                <th>Charity</th>
+                                <th>Tot.Donation</th>
+                                <th>Tot.Raised</th>
+                                <th>CC-DD-#</th>
+                                <th>CC-DD-$</th>
+                                <th>SO-#</th>
+                                <th>SO-$</th>
+                                <th>Web-#</th>
+                                <th>Web-$</th>
+                                <th class="today" title="Pledges dated today">Today-#</th>
+                                <th class="today" title="Pledges dated today">Today-$</th>
+                                <th>Mobile</th>
+                                <th>Email</th>
+                                <th>DOB</th>
+                                <th>$50+</th>
+                                <th>$100+</th>
+                                <th>$200+</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="dailyRevenue" class="panel" style="display:none;">
+                <div class="panel-head">
+                    <h3 id="dailyRevenueTitle">ACQ Revenue Last 30 days</h3>
+                    <div class="daily-range" id="dailyRevenueView">
+                        <button type="button" class="daily-range-btn active" data-revenue-view="chart">Chart</button>
+                        <button type="button" class="daily-range-btn" data-revenue-view="table">Table</button>
+                    </div>
+                </div>
+                <div class="chart-wrap" style="height:280px;">
+                    <canvas id="dailyRevenueChart" role="img" aria-label="Total donations and amount raised from today back through the same day last month"></canvas>
+                </div>
+                <div class="compare-table-wrap">
+                    <table class="datatable" id="dailyRevenueDays"></table>
+                </div>
+            </div>
+            <div id="dailyDrill" style="display:none;">
+                <div id="dailyDrillLoading" class="empty" style="display:none;">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p id="dailyDrillMessage"></p>
+                </div>
+                <div id="dailyDrillDetail" style="display:none;">
+                    <p class="daily-note">Donations, then amount raised, from today back through the same day last month.</p>
+                    <div class="panel">
+                        <h3 id="dailyCharityTitle">Fund Raised by Charity Last 30 days</h3>
+                        <div class="chart-wrap" style="height:280px;">
+                            <canvas id="dailyCharityChart" role="img" aria-label="Amount raised from today back through the same day last month"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3 id="dailyCampaignTitle">Campaign Performance Last 30 days</h3>
+                        <div class="compare-table-wrap">
+                            <table class="datatable" id="dailyCampaignDays"></table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3 id="dailyFundraiserTitle">Fundraiser Performance Last 30 days</h3>
+                        <div class="compare-table-wrap">
+                            <table class="datatable" id="dailyFundraiserDays"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="compareView" style="display:none;">
             <div id="compareLoading" class="empty" style="display:none;">
                 <div class="spinner" aria-hidden="true"></div>
@@ -146,7 +232,7 @@
             </div>
         </div>
 
-        <div id="summaryView">
+        <div id="summaryView" style="display:none;">
             <div class="kpis">
                 <div class="kpi"><p class="label">Total raised</p><p class="value" id="kpiRaised"></p></div>
                 <div class="kpi"><p class="label">Total donations</p><p class="value" id="kpiDonations"></p></div>
@@ -287,7 +373,9 @@
     <script>
         var dashboardUrl = '@Url.Action("Dashboard", "Home")';
         var compareUrl = '@Url.Action("Compare", "Home")';
+        var dailyUrl = '@Url.Action("Daily", "Home")';
+        var dailyDetailUrl = '@Url.Action("DailyDetail", "Home")';
     </script>
-    <script src="~/Scripts/acq-dashboard.js"></script>
+    <script src="~/Scripts/acq-dashboard.js?v=grandtotal"></script>
 </body>
 </html>

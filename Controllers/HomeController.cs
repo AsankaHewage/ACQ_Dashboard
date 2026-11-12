@@ -27,6 +27,30 @@ namespace ACQFundraisingDashboard.Controllers
             return Content(json, "application/json");
         }
 
+        // Charity rows follow the daily toggle. Revenue days run from today back through the same day last month, limited to those charities.
+        public ActionResult Daily(string supplier, string charity, string campaign, string range)
+        {
+            var json = JsonConvert.SerializeObject(
+                DatabaseCon.GetDailySummary(supplier, charity, campaign, range),
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                });
+            return Content(json, "application/json");
+        }
+
+        // Today back through the same day last month for one charity, split by day, campaign, and fundraiser.
+        public ActionResult DailyDetail(string supplier, string charity, string campaign)
+        {
+            var json = JsonConvert.SerializeObject(
+                DatabaseCon.GetDailyDetail(supplier, charity, campaign),
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                });
+            return Content(json, "application/json");
+        }
+
         // Returns one row per period, plus client and supplier rows for those same periods.
         public ActionResult Compare(string supplier, string charity, string campaign, string compareType, string from, string to)
         {

@@ -18,7 +18,19 @@ namespace ACQFundraisingDashboard.Models
         public List<AllCampaigns> AllCampaigns { get; set; }
         public List<Top10Fundraisers> Top10Fundraisers { get; set; }
         public List<StateDemographics> StateDemographics { get; set; }
-        public List<GenderDemographics> GenderDemographics { get; set; } 
+        public List<GenderDemographics> GenderDemographics { get; set; }
+        // Daily rows appended by the procedure. Used by the charity drill-down, not the summary JSON.
+        [Newtonsoft.Json.JsonIgnore]
+        public List<CharityDaily> CharityDaily { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public List<CampaignDaily> CampaignDaily { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public List<FundraiserDaily> FundraiserDaily { get; set; }
+        // Charity channel totals and the combined day-by-day revenue. Not part of the summary JSON.
+        [Newtonsoft.Json.JsonIgnore]
+        public List<DailyCharityRow> CharitySummary { get; set; }
+        [Newtonsoft.Json.JsonIgnore]
+        public List<RevenueDaily> RevenueDaily { get; set; } 
 
         // Starts every list empty so a missing result set is still safe to read.
         public DashboardData()
@@ -36,6 +48,11 @@ namespace ACQFundraisingDashboard.Models
             Top10Fundraisers = new List<Top10Fundraisers>();
             StateDemographics = new List<StateDemographics>();
             GenderDemographics = new List<GenderDemographics>();
+            CharityDaily = new List<CharityDaily>();
+            CampaignDaily = new List<CampaignDaily>();
+            FundraiserDaily = new List<FundraiserDaily>();
+            CharitySummary = new List<DailyCharityRow>();
+            RevenueDaily = new List<RevenueDaily>();
         }
     }
 
@@ -274,6 +291,148 @@ namespace ACQFundraisingDashboard.Models
         public string Name { get; set; }
         public string Supplier { get; set; }
         public string Label { get; set; }
+        public int Donations { get; set; }
+        public decimal Raised { get; set; }
+    }
+
+    // One campaign shown under a charity on the daily acquisition summary.
+    public class DailyCharityCampaign
+    {
+        public string Name { get; set; }
+        public int ListNo { get; set; }
+        public int Donations { get; set; }
+        public decimal Raised { get; set; }
+        public int CcDdCount { get; set; }
+        public decimal CcDdAmount { get; set; }
+        public int SoCount { get; set; }
+        public decimal SoAmount { get; set; }
+        public int WebCount { get; set; }
+        public decimal WebAmount { get; set; }
+        public int TdCount { get; set; }
+        public decimal TdAmount { get; set; }
+        public int Tier50 { get; set; }
+        public int Tier100 { get; set; }
+        public int Tier200 { get; set; }
+        public int Mobile { get; set; }
+        public int Email { get; set; }
+        public int Dob { get; set; }
+    }
+
+    // One charity on the daily acquisition summary. TD is pledges dated today.
+    public class DailyCharityRow
+    {
+        public string Charity { get; set; }
+        public int Donations { get; set; }
+        public decimal Raised { get; set; }
+        public int CcDdCount { get; set; }
+        public decimal CcDdAmount { get; set; }
+        public int SoCount { get; set; }
+        public decimal SoAmount { get; set; }
+        public int WebCount { get; set; }
+        public decimal WebAmount { get; set; }
+        public int TdCount { get; set; }
+        public decimal TdAmount { get; set; }
+        public int Tier50 { get; set; }
+        public int Tier100 { get; set; }
+        public int Tier200 { get; set; }
+        public int Mobile { get; set; }
+        public int Email { get; set; }
+        public int Dob { get; set; }
+        public List<DailyCharityCampaign> Campaigns { get; set; }
+
+        public DailyCharityRow()
+        {
+            Campaigns = new List<DailyCharityCampaign>();
+        }
+    }
+
+    // Last 30 days for one charity: daily totals, then campaign and fundraiser rows.
+    public class DailyCharityDetail
+    {
+        public string Charity { get; set; }
+        public List<DailyDayAmount> Days { get; set; }
+        public List<DailyDayBreakdown> Campaigns { get; set; }
+        public List<DailyDayBreakdown> Fundraisers { get; set; }
+
+        public DailyCharityDetail()
+        {
+            Days = new List<DailyDayAmount>();
+            Campaigns = new List<DailyDayBreakdown>();
+            Fundraisers = new List<DailyDayBreakdown>();
+        }
+    }
+
+    public class DailyDayAmount
+    {
+        public string Day { get; set; }
+        public int Donations { get; set; }
+        public decimal Raised { get; set; }
+    }
+
+    // Daily Activity payload: charity rows plus one point per day for the ACQ Revenue chart.
+    public class DailySummaryResult
+    {
+        public List<DailyCharityRow> Charities { get; set; }
+        public List<DailyDayAmount> Days { get; set; }
+        public List<AllCharities> AllCharities { get; set; }
+        public List<AllSuppliers> AllSuppliers { get; set; }
+        public List<AllCampaigns> AllCampaigns { get; set; }
+
+        public DailySummaryResult()
+        {
+            Charities = new List<DailyCharityRow>();
+            Days = new List<DailyDayAmount>();
+            AllCharities = new List<AllCharities>();
+            AllSuppliers = new List<AllSuppliers>();
+            AllCampaigns = new List<AllCampaigns>();
+        }
+    }
+
+    // One day of combined donations and raised from Total_raised_donation_daily.
+    public class RevenueDaily
+    {
+        public DateTime PledgeDate { get; set; }
+        public decimal Raised { get; set; }
+        public int Donations { get; set; }
+    }
+
+    // One charity on one pledge date from #Total_raised_by_charity_table_daily.
+    public class CharityDaily
+    {
+        public string Charity { get; set; }
+        public DateTime PledgeDate { get; set; }
+        public decimal Total_donation_amount { get; set; }
+        public int Total_donation_count { get; set; }
+    }
+
+    // One campaign on one pledge date from #Total_raised_by_campaign_daily.
+    public class CampaignDaily
+    {
+        public int ListNo { get; set; }
+        public string BankingProductType { get; set; }
+        public DateTime PledgeDate { get; set; }
+        public decimal Total_donation_amount { get; set; }
+        public int Total_donation_count { get; set; }
+    }
+
+    // One fundraiser on one pledge date from #Top10_fr_table_daily.
+    public class FundraiserDaily
+    {
+        public int OperatorNo { get; set; }
+        public string Supplier { get; set; }
+        public string Surname { get; set; }
+        public string FirstName { get; set; }
+        public DateTime PledgeDate { get; set; }
+        public decimal Total_Raised { get; set; }
+        public int Total_Donation { get; set; }
+    }
+
+    // One campaign or fundraiser on one day. Supplier is set for fundraisers.
+    public class DailyDayBreakdown
+    {
+        public string Name { get; set; }
+        public string Supplier { get; set; }
+        public string Day { get; set; }
         public int Donations { get; set; }
         public decimal Raised { get; set; }
     }
